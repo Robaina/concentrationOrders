@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="description" content="An interactive graph of the flux order relations of Escherichia coli">
+  <meta name="keywords" content="Flux order relations, Escherichia coli, Metabolic modelling">
+  <meta name="author" content="Semidán Robaina Estévez">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Concentration Orders</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="imgs/favicon-32x32.ico">
+
+  <script src="libs/cytoscape.js"></script>
+  <script src="libs/dagre.js"></script>
+  <script src="libs/cytoscape-dagre.js"></script>
+  <script src="libs/jquery-3.3.1.min.js"></script>
+  <script src="libs/plotly-latest.min.js"></script>
+  <script src="libs/pace.min.js"></script>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="waitbar.css">
+
+  <!-- Sets $ as inline MathJax symbols -->
+  <script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+    tex2jax: {
+      inlineMath: [ ['$','$'], ["\\(","\\)"] ],
+      processEscapes: true
+    }
+    });
+  </script>
+
+  <!-- Allows MathJax in the document: Note configuration changed to "SVG to avoid interference with plot.ly which renders in SVG"  TeX-MML-AM_CHTML TeX-AMS_SVG-->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.4/latest.js?config=default" async></script>
+
+  <!-- Global site tag (gtag.js) - Google Analytics
+  <script async src="https://www.googletagmanager.com/gtag/js?id=UA-131412021-1"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'UA-131412021-1');
+  </script> -->
+
+</head>
+
+<body>
+
+  <header class="navbar">
+    <!-- <div class="button-container">
+      <button class="button" id="graph-button" onclick="showGraph()" autofocus>Graph</button>
+      <button class="button" id="plot-button" onclick="showPlot()">Plot</button>
+      <button class="button" id="about-button" onclick="showAbout()">About</button>
+    </div> -->
+    <h1 style="text-align: center;" id="main-title">Ordering of metabolite concentrations in <em>Escherichia coli</em></h1>
+  </header>
+
+  <form id="reaction-form">
+    <p id="form-reaction">Current metabolite: </p>
+    <select name="reactions" id="select-list" onchange="changeSelectedReaction()">
+    </select>
+  </form>
+
+  <div class="container" id="graph-container">
+    <div class="graph" id="cy"></div>
+  </div>
+
+  <div class="container" id="about-container">
+    <h2 style="text-align: center;">The flux order relation</h2>
+
+    <p>The following <a href="https://en.wikipedia.org/wiki/Directed_acyclic_graph">directed acyclic graph (DAG)</a> represents the <a href="https://en.wikipedia.org/wiki/Partially_ordered_set">partially ordered set</a> induced by the flux order relation in <a href="https://www.nature.com/articles/srep39647">EColiCore2</a> a core metabolic network of the bacterium <i>Escherichia coli</i>. In other words, this is the <a href="https://en.wikipedia.org/wiki/Hasse_diagram">Hasse diagram</a> of the partially (flux) ordered set.</p>
+  </div>
+
+  <!-- <div class="container "id="plot-container">
+    <p id="plot-title">Metabolic subsystems</p>
+    <div id="plot-wrapper">
+      <div id="barChart"></div>
+    </div>
+  </div> -->
+
+  <footer>
+      <p id="credits"><a href="https://www.github.com/Robaina" id="me">Semidán Robaina Estévez</a>, 2018<br>
+      Using <a href="http://js.cytoscape.org/">Cytoscape.js</a>, <a href="https://plot.ly/javascript">Plotly.js</a>, <a href="https://github.com/dagrejs/dagre">Dagre.js</a> and <a href="https://github.hubspot.com/pace/docs/welcome">Pace.js.</a></p>
+  </footer>
+
+  <script src="data/graphLayoutOptions.js"></script>
+  <script src="data/conditions/Cond2/graphData.json"></script>
+  <script src="data/graphStyle.js"></script>
+  <script src="sketch.js"></script>
+
+  <!-- <a href="https://www.github.com/Robaina/fluxOrders">Code@GitHub</a> -->
+
+
+
+</body>
+
+</html>

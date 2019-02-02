@@ -1,0 +1,264 @@
+body {
+  --orange-color: rgb(208, 165, 37);
+  --body-color: rgb(54, 54, 54);
+  min-height: 100%;
+  padding: 0px;
+  background-color: var(--body-color);
+  color: rgb(182, 182, 182);
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  min-height: 100%;
+}
+
+h1 {
+  font-size: 2.6vmax;
+  z-index: -1;
+}
+
+p {
+  text-align: justify;
+  font-size: 1.2vw;
+}
+
+a {
+  text-decoration: none;
+  color: var(--orange-color);
+}
+
+header {
+  width: 80vw;
+  margin-left:  calc( (100vw - 80vw) / 2 );
+}
+
+footer {
+  /* position: absolute; */
+  /* top: 92vmin; */
+  /* left: 3%; */
+  font-size: 2vh;
+  z-index: 2;
+  margin-left: calc( (100vw - 70vw) / 2 );
+}
+
+form {
+  /* position: absolute; */
+  /* top: 7vmin; */
+  /* left: 52vmax; */
+  margin-top: 10vh;
+  margin-left: calc( (100vw - 44vw) / 2 );
+  z-index: 2;
+  color: inherit;
+}
+
+#form-reaction {
+  font-size: 1.8vw;
+  /* text-align: center; */
+  margin-left: calc( 32vw / 2 );
+}
+
+#select-list {
+  font-size: 1.8vw;
+  text-align-last: center;
+  color: var(--orange-color);
+  background-color: var(--body-color);
+  max-width: 44vw;
+  height: 7vh;
+}
+
+select option {
+  background-color: var(--body-color);
+  font-size: 1.2vw;
+}
+
+#about-container {
+  /* position: absolute;
+  top: 11vmin;
+  right: 2vmax; */
+  width: 70vw;
+  /* height: auto; */
+  margin-left: calc( (100vw - 70vw) / 2 );
+  font-size: 1.6vw;
+  background-color: var(--body-color);
+  color: rgb(221, 221, 221);
+  /* border-radius: 5%; */
+  /* border-radius: 25px; */
+  /* border: 2px solid var(--orange-color); */
+  /* padding: 20px; */
+  z-index: 3;
+  /* opacity: 1; */
+  /* transition: opacity 1.5s; */
+  /* display: none; */
+}
+
+.button {
+  position: absolute;
+  top: -1vh;
+  left: 3.5vmax;
+  padding: 1vmax;
+  font-size: 2.3vmax;
+  width: 10vmax;
+  background-color: rgb(131, 131, 131);
+  border: none;
+  color: var(--body-color);
+  text-align: center;
+  text-decoration: none;
+  display: block;
+  margin: 1em 0em;
+  cursor: pointer;
+  border-radius: 1vmax;
+  user-select: none;
+  outline: none;
+  box-shadow: 0 0.5vmax rgb(221, 221, 221);
+  z-index: 2;
+}
+.button:focus {
+  background-color: var(--orange-color);
+  /* box-shadow: 0 0.3vmax rgb(102, 102, 102); */
+  /* transform: translateY(4px); */
+}
+
+#graph-button {
+  display: none;
+}
+
+.graph {
+  width: 80vw;
+  height: 80vh;
+  /* position: absolute; */
+  margin-left: calc( (100vw - 80vw) / 2 );
+  padding: 0%;
+  margin-top: 5vh;
+  /* top: 25vmin; */
+  z-index: 0;
+}
+
+::-webkit-scrollbar {
+  width: 1vw;
+}
+
+::-webkit-scrollbar-track {
+  box-shadow: inset 0 0 0.25vw grey;
+  border-radius: 0.5vw;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--orange-color);
+  border-radius: 0.5vw;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--orange-color);
+}
+
+@media only screen and (max-width: 768px) {
+
+  #about-container {
+    top: auto;
+    right: auto;
+    width: 80vmax;
+    display: inline-block;
+    position: absolute;
+    margin-top: 5vmax;
+    margin-left: 7vmax;
+    margin-right: 5vmax;
+    padding: 0;
+    border: 0;
+    display: none;
+    opacity: 1;
+    /* visibility: hidden; */
+  }
+
+  form {
+    position: static;
+    margin-left: 5vw;
+    margin-top: 8vh;
+  }
+
+  #form-reaction {
+    font-size: 3vmax;
+    position: relative;
+    left: -18%;
+    display: none;
+  }
+
+  #graph-container {
+    position: absolute;
+    top: 0;
+    left: 0vw;
+    height: 100vmin;
+    width: 90vmax;
+    margin-left: 5vmax;
+    padding: 0;
+    z-index: -1;
+
+  }
+  .graph {
+    position: relative;
+    top: 0;
+    left: 0vw;
+    width: 100%;
+    height: 100%;
+  }
+
+  #plot-container {
+    position: absolute;
+    top: 28vmin;
+    left: 10vmax;
+    height: 70vmin;
+    width: 100vmax;
+    display: none;
+    z-index: 1;
+  }
+
+  #plot-title {
+    font-size: 2vmax;
+    margin-bottom: 0;
+    margin-left: 0;
+    display: none;
+  }
+
+  #plot-wrapper {
+    position: relative;
+    top: 0%;
+    width: 100%;
+    display: inherit;
+    /* height: auto; */
+  }
+
+  .button-container {
+    display: inline-block;
+    margin-left: 2vmax;
+  }
+
+  .button {
+    position: static;
+    width: 7vw;
+    font-size: 80%;
+  }
+
+  h1 {
+    margin-top: 1%;
+    margin-left: 5%;
+    display: inline-block;
+  }
+
+  #graph-button, #plot-button, #about-button {
+    display: initial;
+  }
+
+  footer {
+    display: none;
+  }
+
+  p {
+    font-size: 1.5vmax;
+  }
+
+  .github-corner, h2 {
+    display: none;
+  }
+
+}

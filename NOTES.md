@@ -1,0 +1,2 @@
+## Some comments
+After checking a coupled of predicted ratios with the data from Bennet 2009 I have seen something weird: It seems like the results are completely opposite! That is, when I predict a ratio below 1, the data show a ratio above 1. Could it be that I got the ratios inversed? Or is it a problem with the prediction, perhaps using the pre-defined irreversible reactions, or the simulated experimental conditions.

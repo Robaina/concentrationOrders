@@ -1,0 +1,123 @@
+\documentclass[12pt]{article}
+\usepackage{authblk}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage[dvipsnames,svgnames,x11names]{xcolor}
+\usepackage[markup=underlined]{changes}
+\usepackage{todonotes}
+\usepackage{hyperref}
+
+\title{On the ordering of metabolite concentrations in \emph{Escherichia coli}}
+
+\author{Semid\'an Robaina Est\'evez \footnote{Corresponding autor: \href{mailto:semidan.robaina@gmail.com}{semidan.robaina@gmail.com}}\\Ronin Institute for Independent Scholarship}
+
+\setcounter{Maxaffil}{0}
+\renewcommand\Affilfont{\itshape\small}
+
+\date{\vspace{-5ex}}
+\graphicspath{{./images/}}
+
+\definechangesauthor[color=NavyBlue]{SRE}
+\setlength{\marginparwidth}{3cm}
+\makeatletter
+\setremarkmarkup{\todo[color=Changes@Color#1!20,size=\scriptsize]{#1: #2}}
+\makeatother
+
+\newcommand{\note}[2][]{\added[#1,remark={#2}]{}}
+
+\begin{document}
+  \maketitle
+  \bibliographystyle{apalike}
+
+  \begin{abstract}
+    Metabolic networks at steady state operate under stoichiometric, kinetic and thermodynamic constraints. As a result, metabolite concentrations are not free to vary. It has been shown that certain metabolites in \emph{Escherichia coli} show a natural ordering at steady state, \emph{i.e.}, there are metabolite pairs for which one metabolite maintains a higher concentration level than the other under different steady states. Here, we provide an explanation to such order relations in a setting were \emph{Escherichia coli}'s cells grow at steady state.
+  \end{abstract}
+
+
+  Several studies have shown that certain metabolites maintain an order relation in their concentrations under different steady states of \emph{Escherichia coli} \cite{Bennett2008,Bennett2009a}. This order relation may be the result of diverse constraints operating at steady state, such as stoichiometric, thermodynamic and growth constraints. In the following, we will derive a theoretical explanation for this ordering of concentrations.
+
+  We describe the concentration dynamics of the biochemical network with the general system,
+
+  \begin{equation}
+    \label{eq:1}
+    \frac{dx_i}{dt} = \sum_j n_{ij} v_j(x),
+  \end{equation}
+
+  \noindent where, $n_{ij}$ represents the stoichiometric coefficient of metabolite $i$ in reaction $j$, with $n_{ij} < 0$ if it is a substrate of the reaction, $n_{ij} > 0$ if it is a product, $x$ the metabolite concentrations and $v(x)$ the metabolic fluxes, which are a function of the metabolite concentration --- the exact form provided by the selected kinetic law. All reactions in \ref{eq:1} are reversible \note[id=SRE]{Might as well include pre-defined irreversible reactions}, with the exception of the biomass production (pseudo)reaction, and the forward and backward direction are represented as two different reactions. Thus, we the net flux of a reaction $v_j = v_j^{for} - v_j^{back}$. We assume that cells are growing at steady state, thus the flux through the biomass reaction, $v_{bio} > \gamma v^{max}_{bio}$, with $\gamma \in [0, 1]$, a fraction of the theoretical maximum. \note[id=SRE]{I'll make a proper intro after I get results. Starting with the second law more appropriate}
+
+  Further, we can determine which reactions are irreversible due the given constraints. For this, we only need to solve the linear programs
+
+  \begin{align}
+    \label{eq:2}
+    \begin{aligned}
+      &z^{for}_k=\max_{v}\; v^{for}_k
+      \\
+      &\mathrm{s.t.}
+      \\
+      & \sum_j n_{ij} v_j = 0
+      \\
+      & v_{bio} > \gamma v^{max}_{bio},
+    \end{aligned}
+    \qquad
+    \begin{aligned}
+      &z^{back}_k=\max_{v}\; v^{back}_k
+      \\
+      &\mathrm{s.t.}
+      \\
+      & \sum_j n_{ij} v_j = 0
+      \\
+      & v_{bio} > \gamma v^{max}_{bio},
+    \end{aligned}
+  \end{align}
+
+  if $z^{for}_{k} > 0$ and $z^{back}_{k} = 0$ then reaction $v_k$ can only proceed in the forward direction under these constraints. Alternatively, if $z^{for}_{k} = 0$ and $z^{back}_{k} > 0$ then reaction $v_k$ can only proceed in the backward direction.
+
+  Thus far, we have determined that certain reactions are irreversible in an escenario where cells grow at steady state. Additionally, the second law of thermodynamics imposes that flux of free energy $g_j = \Delta^{\circ} G_j v_j < 0$ for a reaction to have non-zero flux \cite{Kondepudi2014a}. In our case, we have already determined the direction of the reaction with the linear programs in \ref{eq:2}, hence we only need the reaction Gibbs free energy
+
+  \begin{equation}
+    \label{eq:3}
+    \Delta^{\circ} G_j < 0,
+  \end{equation}
+
+  \noindent where,
+
+  \begin{equation}
+    \label{eq:4}
+    \Delta^{\circ} G_j = \Delta^{\circ} G_{r(j)} + RT \sum_i n_{ij} \log{x_i}
+  \end{equation}
+
+  \noindent in which $\Delta^{\circ} G_{r(j)} = \sum_i n_{ij}\Delta^{\circ} G_{f(i)}$. Further, the energies of formation $\Delta^{\circ} G_{f(i)}$ of the metabolites participating in the reaction can be estimated with the component contribution method \cite{Noor2013}.
+
+  Now, the logarithm is a monotonically increasing function, hence $\log{x_p} > \log{x_q} \implies x_p > x_q$. Furthermore, we can establish if $\log{x_p} > \log{x_q}$ with the following linear program,
+
+  \begin{align}
+    \begin{aligned}
+      \label{eq:5}
+      &z = \min_{\log{x}} \; \log{x_p} - \log{x_q}
+      \\
+      &\mathrm{s.t.}
+      \\
+      &\Delta^{\circ} G_{r(j)} + RT \sum_i n_{ij} \log{x_i} < 0 \; \forall j \in \mathrm{R_I}
+      \\
+      &\Delta^{\circ} G_{r}^{\dagger} - \epsilon \leq \Delta^{\circ} G_{r} \leq \Delta^{\circ} G_{r}^{\dagger} + \epsilon
+      \\
+      &\log{x}_{min} \leq \log{x} \leq \log{x}_{max}
+    \end{aligned}
+  \end{align}
+
+  \noindent where $\mathrm{R_I}$ is the set of irreversible reactions computed with the linear programs in \ref{eq:2}, $\Delta^{\circ} G_{r}^{\dagger}$ the reaction Gibbs energy estimated by the component contribution method with the corresponding estimation error, $\epsilon$. Finally, $x_{min}, x_{max}$ are metabolite concentration bounds --- in this case $x_{min} = 10^{-8}$ to avoid numerical issues and $x_{max} = 0.1 \,\mathrm{M}$ a reasonable upper bound considering the largest concentration obtained in experimental measurements \cite{Bennett2008}. If $z \geq 0$ then we know that $\log{x_p} \geq \log{x_q}$ and thus $x_p \geq x_q$. Further, we have that $z = \log{(x_p^*/x_q^*)}$, hence $x_p^*/x_q^* = e^z$, where $x_i^*$ denote the concentration of metabolite $x_i$ at the optimum. Therefore, with this method, we can compute the minimum concentration ratio between pairs of metabolites that is required to make the system thermodynamically feasible, namely,
+
+  \begin{equation}
+    \label{eq:6}
+    \frac{x_p}{x_q} \geq e^z.
+  \end{equation}
+
+  Interestingly, this minimum ratio holds in any steady state of the system, and it is independent of reaction kinetics. A result that may provide a structural and thermodynamic explanation for the relationships observed in experimental measurements of metabolite concentrations. Note that the number of ordered pairs may increase if we have more reactions with available $\Delta^{\circ} G_{r}$. But, of course, if an order relation is established with a given set of constraints, augmenting the set of constraints can only add new order relations.
+
+
+
+
+
+
+  \bibliography{C:/Users/tinta/OneDrive/Documents/Projects/Bibliography/Ordering_of_concentrations}
+\end{document}
