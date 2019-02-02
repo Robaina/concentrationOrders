@@ -1,5 +1,5 @@
-let nodeSize = 100;
-let nodeFontSize = 100;
+let nodeSize = 80;
+let nodeFontSize = 50;
 let edgeFontSize = 50;
 let edgeWidth = 2;
 let fontColor = '#ba9938';

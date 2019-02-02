@@ -19,12 +19,11 @@ if __name__ == '__main__':
     # Parameters
     uncertainty_threshold = alpha = 0.4
     biomass_threshold = beta = 1
-    dG0_error_fraction = gamma = 0
     Gibbs_eps = 1e-6 # kJ/mol
-    x_min, x_max = 1e-8, 1e-2 # M
+    x_min, x_max = 1e-8, 2e-1 # M
     fileName = 'graphData.json'
-    dirName = 'Cond7'
-    notes = "Original iJO1366 flux bounds, added maximum ratio, removed experimental error, new formulation"
+    dirName = 'Cond6'
+    notes = "Original iJO1366 flux bounds, added maximum ratio, Old formulation (no error), dG0 - error"
 
 
     #******************************* Load model, dG0********************************
@@ -65,15 +64,15 @@ if __name__ == '__main__':
     # Run fva
     print('Running flux variability analysis...')
     start = time.time()
-    fva = flux_variability_analysis(iJO1366, reaction_list=None,
-                                  fraction_of_optimum=beta, processes=2,
-                                  loopless=True).round(decimals=4)
-
+#    fva = flux_variability_analysis(iJO1366, reaction_list=None,
+#                                  fraction_of_optimum=beta, processes=2,
+#                                  loopless=True).round(decimals=4)
+#
     end = time.time()
-    fva.to_csv('iJO1366fva.csv')
+#    fva.to_csv('iJO1366fva.csv')
 
     # Load pre-computed fva solution
-    # fva = pd.read_csv('iJO1366fva.csv', index_col=0)
+    fva = pd.read_csv('iJO1366fva.csv', index_col=0)
 
 
     #**************************** Irreversible reactions****************************
@@ -137,21 +136,13 @@ if __name__ == '__main__':
     logx_max = (np.log(x_max)) * np.ones((n_mets, 1))
 
     # Construct vectors: dG0min, dG0max
-    dG0min, dG0max = np.zeros((n_rxns, 1)), np.zeros((n_rxns, 1))
+    dG0 = np.zeros((n_rxns, 1))
     for i, rxn in enumerate(Irr_rxns_with_dG0):
-        dG0_i, dG0_error_i = rxnGibbs[rxn]
-        dG0min[i] = dG0_i - gamma * dG0_error_i
-        dG0max[i] = dG0_i + gamma * dG0_error_i
+        dG0[i] = rxnGibbs[rxn][0]
 
-    A0 = np.hstack((N_Irr.values.transpose(), (1 / (R*T)) * np.identity(n_rxns)))
-    A1 = np.hstack((np.zeros((n_rxns, n_mets)), -np.identity(n_rxns)))
-    A2 = np.hstack((np.zeros((n_rxns, n_mets)), np.identity(n_rxns)))
-    A3 = np.hstack((-np.identity(n_mets), np.zeros((n_mets, n_rxns))))
-    A4 = np.hstack((np.identity(n_mets), np.zeros((n_mets, n_rxns))))
-
-    A = cvxopt.matrix(np.vstack((A0, A1, A2, A3, A4)))
-    b = cvxopt.matrix(np.vstack((-Gibbs_eps * np.ones((n_rxns, 1)),
-                                 -dG0min, dG0max,
+    A = cvxopt.matrix(np.vstack((N_Irr.values.transpose(),
+	                             -np.identity(n_mets), np.identity(n_mets))))
+    b = cvxopt.matrix(np.vstack((-(1 / (R * T)) * dG0,
                                  -logx_min, logx_max)))
 
     # Start iteration over metabolite pairs (variable components)
@@ -160,7 +151,7 @@ if __name__ == '__main__':
         for q in range(n_mets):
             if p != q:
                 # Find minimum ratio
-                c = np.zeros(n_mets + n_rxns)
+                c = np.zeros(n_mets)
                 c[[p, q]] = [1, -1]
                 c = cvxopt.matrix(c)
 
@@ -180,8 +171,8 @@ if __name__ == '__main__':
                     max_ratio = np.e**z
 
                     met_orders.append([met_i, met_j, min_ratio, max_ratio])
-
 					
+
     #************************************* Graph************************************
 
     #*******************************************************************************
@@ -261,7 +252,6 @@ if __name__ == '__main__':
     with open(directory + '/Parameters.txt', 'w') as readme:
         readme.write('T: ' + str(T) + ' K' + '\n'
                      +'dG0 uncertainty threshold: ' + str(alpha) + '\n'
-                     +'dG0 allowed error fraction: ' + str(gamma) + '\n'
                      +'Biomass threshold: ' + str(beta) + '\n'
                      +'Gibbs_eps: ' + str(Gibbs_eps) + ' kJ/mol' + '\n'
                      +'X_max: ' + str(x_max) + ' M' + '\n'
