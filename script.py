@@ -17,14 +17,15 @@ if __name__ == '__main__':
     T = 310.15 # 298.15 # K
 
     # Parameters
-    uncertainty_threshold = alpha = 0.4
+    uncertainty_threshold = alpha = 2
     biomass_threshold = beta = 1
-    dG0_error_fraction = gamma = 0
+    dG0_error_fraction = gamma = 1
     Gibbs_eps = 1e-6 # kJ/mol
-    x_min, x_max = 1e-8, 1e-2 # M
+    x_min, x_max = 1e-7, 1.5e-2 # M (in Teppe et al 2013* they use 1e-5, 1e-1!!
+	#https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0075370)
     fileName = 'graphData.json'
-    dirName = 'Cond7'
-    notes = "Original iJO1366 flux bounds, added maximum ratio, removed experimental error, new formulation"
+    dirName = 'Cond5'
+    notes = "Original iJO1366 flux bounds, added maximum ratio, new formulation"
 
 
     #******************************* Load model, dG0********************************
@@ -259,11 +260,13 @@ if __name__ == '__main__':
     df.to_csv(directory + "/metaboliteOrders.csv", index=0)
 
     with open(directory + '/Parameters.txt', 'w') as readme:
-        readme.write('T: ' + str(T) + ' K' + '\n'
+        readme.write('Diectory: ' + dirName + '\n'
+                     +'T: ' + str(T) + ' K' + '\n'
                      +'dG0 uncertainty threshold: ' + str(alpha) + '\n'
                      +'dG0 allowed error fraction: ' + str(gamma) + '\n'
                      +'Biomass threshold: ' + str(beta) + '\n'
                      +'Gibbs_eps: ' + str(Gibbs_eps) + ' kJ/mol' + '\n'
+                     +'X_min: ' + str(x_min) + ' M' + '\n'
                      +'X_max: ' + str(x_max) + ' M' + '\n'
                      +'Notes: ' + notes
                     )    
