@@ -17,15 +17,16 @@ if __name__ == '__main__':
     T = 310.15 # 298.15 # K
 
     # Parameters
-    uncertainty_threshold = alpha = 2
+    uncertainty_threshold = alpha = 200
     biomass_threshold = beta = 1
+    unit_conversion_factor = 1 # with respect to 1 mol
     dG0_error_fraction = gamma = 1
-    Gibbs_eps = 1e-6 # kJ/mol
-    x_min, x_max = 1e-7, 1.5e-2 # M (in Teppe et al 2013* they use 1e-5, 1e-1!!
+    Gibbs_eps = 1e-6 / unit_conversion_factor # kJ/mol
+    x_min, x_max = 1e-7 * unit_conversion_factor, 1e-1 * unit_conversion_factor # M (in Teppe et al 2013* they use 1e-5, 1e-1!!
 	#https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0075370)
     fileName = 'graphData.json'
-    dirName = 'Cond5'
-    notes = "Original iJO1366 flux bounds, added maximum ratio, new formulation"
+    dirName = 'Cond1'
+    notes = "Original iJO1366 flux bounds, loopless=True, remove_orphans=True, in nanomolar"
 
 
     #******************************* Load model, dG0********************************
@@ -42,6 +43,11 @@ if __name__ == '__main__':
 
     iJO1366 = cobra.io.load_json_model('iJO1366.json')
     # Make internal reactions reversible
+    #EX_rxns = iJO1366.exchanges
+    #for rxn in iJO1366.reactions:
+    #    if rxn not in EX_rxns:
+    #       if not rxn.reversibility:
+    #              iJO1366.reactions.get_by_id(rxn.id).lower_bound = -rxn.upper_bound
 
     # Remove blocked reactions
     blockedRxns = cobra.flux_analysis.find_blocked_reactions(
@@ -58,7 +64,7 @@ if __name__ == '__main__':
     for rxn_id in iJO1366_rxns:
         try:
             rxn = Reaction.parse_formula(iJO1366ToKEGG.loc[rxn_id].item())
-            dG0_prime, dG0_uncertainty = eq_api.dG0_prime(rxn)
+            dG0_prime, dG0_uncertainty = np.array(eq_api.dG0_prime(rxn)) / unit_conversion_factor
             rxnGibbs[rxn_id] = [dG0_prime, dG0_uncertainty]
         except Exception:
             pass
@@ -103,7 +109,7 @@ if __name__ == '__main__':
 
     for rxn in iJO1366.reactions:
         if notIrreversibleWithGibbsEnergy(rxn):
-            GEM.reactions.get_by_id(rxn.id).remove_from_model(remove_orphans=False)
+            GEM.reactions.get_by_id(rxn.id).remove_from_model(remove_orphans=True)
 
     N = cobra.util.array.create_stoichiometric_matrix(GEM, array_type='dense')
     Irr_rxns_with_dG0 = [rxn.id.lower() for rxn in GEM.reactions]
@@ -121,9 +127,10 @@ if __name__ == '__main__':
         if Irr_rxns[rxn] == 'backward':
             N_Irr[rxn] *= -1
             N_Irr.rename(columns={rxn: rxn + '_back'}, inplace=True)
-
-    N_met_pairs = int(0.5 * len(N_Irr.index) * (len(N_Irr.index) - 1))
-    print('There are ' + str(N_met_pairs) + ' metabolite pairs')
+			
+    n_rxns, n_mets = N_Irr.values.transpose().shape
+    N_met_pairs = int(0.5 * n_mets * (n_mets - 1))
+    print('There are ' + str(n_rxns) + ' irreversible reactions with dG0 data and ' + str(N_met_pairs) + ' metabolite pairs')
 
 
     #**************************** Linear program************************************
@@ -131,7 +138,6 @@ if __name__ == '__main__':
     #*******************************************************************************
 
     # Standard in cvxopt is Ax <= b so have to change signs and add epsilon to rhs
-    n_rxns, n_mets = N_Irr.values.transpose().shape
 
     # Bounds
     logx_min = (np.log(x_min)) * np.ones((n_mets, 1))

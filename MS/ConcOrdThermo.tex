@@ -115,8 +115,34 @@
   Interestingly, this minimum ratio holds in any steady state of the system, and it is independent of reaction kinetics. A result that may provide a structural and thermodynamic explanation for the relationships observed in experimental measurements of metabolite concentrations. Note that the number of ordered pairs may increase if we have more reactions with available $\Delta^{\circ} G_{r}$. But, of course, if an order relation is established with a given set of constraints, augmenting the set of constraints can only add new order relations.
 
   \noindent \textbf{NOTE}: I have discovered a 2013 paper \cite{Tepper2013} in which authors implement a similar method. Interestingly, even though Noor is co-author, they do not consider the errors in $\Delta^{\circ} G_{r}$ like I did, also, they just establish concentration bounds of $x_{min} = 10^{-5}, x_{max} = 10^{-1}$ without further explanation. I do not include the constraints on minimizing total metabolite concentration and enzyme usage. I wonder if I should still publish this and show how errors in $\Delta^{\circ} G_{r}$ as well as the bounds on $x$ affect results...
-  Will minimize $\sum_i{\log{x_i}}$ do the same effect as minimizing $\sum_i{x_i}$? 
+  Will minimize $\sum_i{\log{x_i}}$ do the same effect as minimizing $\sum_i{x_i}$?\\
 
+  \noindent \textbf{SECOND NOTE}
+  An alternative formulation of the problem is the following:
+  \begin{align}
+    \begin{aligned}
+      \label{eq:7}
+      &z = \min_{\substack{ \log{x} \in \rm I\!R^n, \\ v \in \rm I\!R^n_{\geq 0}, \\ y^+, y^- \in \{0, 1\} }} \; \log{x_p} - \log{x_q}
+      \\
+      &\mathrm{s.t.}
+      \\
+      &Sv = 0
+      \\
+      &v_{bio} \geq \gamma v^*_{bio}
+      \\
+      &\Delta^{\circ} G_{r(j)} + RT \sum_i n_{ij} \log{x_i} - y_j^{(+, -)}M< 0 \; \forall j \in \mathrm{R_{\Delta^{\circ} G_{r}}}
+      \\
+      &\Delta^{\circ} G_{r}^{\dagger} - \epsilon \leq \Delta^{\circ} G_{r} \leq \Delta^{\circ} G_{r}^{\dagger} + \epsilon
+      \\
+      &\log{x}_{min} \leq \log{x} \leq \log{x}_{max}
+      \\
+      &y_j^{(+, -)} v_{min(j)} \leq v^{(+, -)}_j \leq y_j^{(+, -)} v_{max(j)} \; \forall j \in \mathrm{R_{\Delta^{\circ} G_{r}}}
+      \\
+      &y^+ + y^- \leq 1
+    \end{aligned}
+    \end{align}
+
+    \noindent in which the two steps in \ref{eq:2} and \ref{eq:5} are merged together in a single MILP. Some reactions are considered irreversible, in which case only $y^+$ and $v^+$ exist. Further, some irreversible reactions have a default lower bound $v_{min(j)} > 0$, such as the biomass reaction, in which $v_{bio} \geq \gamma v^*_{bio}$, in this cases no binary variable is needed, since the reaction always carries flux in the feasible space. The advantage is that loopless fva is no longer needed, while the disadvantage is that the MILP is harder to solve than the previous LPs. Also, I need to split reversible reactions since the order of the reaction quotient and the value of the Gibbs energy is inverted! Actually, I don't see the advantage here... if a reaction is irreversible in the feasible space of \ref{eq:2} then it is also irreversible in \ref{eq:7}, it is the same feasible space with respect to flux values after all. No... because there could be two flux distributions in the feasible space in which one reaction is running in the opposite direction but in both cases render the same biomass production. We could use this flux distributions to find the minimum ratio of concentrations as well, but are eliminated in the first step since the reaction's direction is not consistent.
 
 
 
