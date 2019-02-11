@@ -19,10 +19,9 @@ if __name__ == '__main__':
     # Parameters
     uncertainty_threshold = alpha = 200
     biomass_threshold = beta = 1
-    unit_conversion_factor = 1 # with respect to 1 mol
     dG0_error_fraction = gamma = 1
-    Gibbs_eps = 1e-6 / unit_conversion_factor # kJ/mol
-    x_min, x_max = 1e-7 * unit_conversion_factor, 1e-1 * unit_conversion_factor # M (in Teppe et al 2013* they use 1e-5, 1e-1!!
+    Gibbs_eps = 1e-6 # kJ/mol
+    x_min, x_max = 1e-7, 1e-1 # M (in Teppe et al 2013* they use 1e-5, 1e-1!!
 	#https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0075370)
     fileName = 'graphData.json'
     dirName = 'Cond1'
@@ -64,7 +63,7 @@ if __name__ == '__main__':
     for rxn_id in iJO1366_rxns:
         try:
             rxn = Reaction.parse_formula(iJO1366ToKEGG.loc[rxn_id].item())
-            dG0_prime, dG0_uncertainty = np.array(eq_api.dG0_prime(rxn)) / unit_conversion_factor
+            dG0_prime, dG0_uncertainty = eq_api.dG0_prime(rxn)
             rxnGibbs[rxn_id] = [dG0_prime, dG0_uncertainty]
         except Exception:
             pass
@@ -84,6 +83,7 @@ if __name__ == '__main__':
 
 
     #**************************** Irreversible reactions****************************
+	
     #*******************************************************************************  
 
     # loop over fva limits
@@ -134,7 +134,7 @@ if __name__ == '__main__':
 
 
     #**************************** Linear program************************************
-
+    # USE cvxopt.glpk.ilp()
     #*******************************************************************************
 
     # Standard in cvxopt is Ax <= b so have to change signs and add epsilon to rhs
