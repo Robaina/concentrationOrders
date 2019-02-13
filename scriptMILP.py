@@ -17,18 +17,19 @@ from six import iteritems
 import re
 
 # Constants (dG0 in kJ/mol)
-R = 8.3144598 * 1e-3 # kJ. K^-1. mol^-1
+R = 8.3144598 # kJ. K^-1. mmol^-1
 T = 310.15 # 298.15 # K
 
 # Parameters
-numerator_metabolites = p_mets = ['h_p']
-denominator_metabolites = q_mets = ['h_c']
-uncertainty_threshold = alpha = 0.5
+numerator_metabolites = p_mets = ['g6p_c']
+denominator_metabolites = q_mets = ['f6p_c']
+uncertainty_threshold = alpha = 10
 biomass_threshold = beta = 1
 dG0_error_fraction = gamma = 1
-Gibbs_eps = 1e-6 # kJ/mol
-M = 1e6
-x_min, x_max = 1e-6, 1e-1
+Gibbs_eps = 1e-9 # kJ/mmol
+M = 1e8
+x_min, x_max = 1e-7, 1e2 # mM
+# Fluxes in mmol.gDW^-1.min^-1
 # (in Teppe et al 2013* they use 1e-5, 1e-1!
 # https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0075370)
 fileName = 'graphData.json'
@@ -103,33 +104,46 @@ def convert_to_irreversible_SRE(cobra_model):
 # Load model
 GEM = cobra.io.load_json_model('iJO1366.json')
 
+# Convert model to irreversible
+convert_to_irreversible_SRE(GEM)
+
+# # Convert original flux bounds from mmol.gDW^-1.min^-1 to mol.gDW^-1.min^-1
+# for rxn in GEM.reactions:
+#     rxn.lower_bound *= 1e-3
+#     rxn.upper_bound *= 1e-3
+
+# # Remove blocked reactions (using fva bounds)
+# blockedRxns = cobra.flux_analysis.find_blocked_reactions(
+#     GEM, zero_cutoff=1e-9, open_exchanges=False)
+# for rxn in blockedRxns:
+#     GEM.reactions.get_by_id(rxn).remove_from_model(remove_orphans=True)
+
 # Find non-default irreversible reactions
 print('Running flux variability analysis...')
 fva = flux_variability_analysis(GEM, reaction_list=None,
                                 fraction_of_optimum=beta, processes=2,
-                                loopless=False).round(decimals=4)
-fva.to_csv('iJO1366fva.csv')
-GEM.reactions[6].lower_bound = fva['minimum'].loc['BIOMASS_Ec_iJO1366_core_53p95M']
+                                loopless=False).round(decimals=9) # to few decimal places will artificialyy block reactions!
+# fva.to_csv('iJO1366fva.csv')
+GEM.optimize()
+biomass_reaction = GEM.reactions.get_by_id('BIOMASS_Ec_iJO1366_core_53p95M')
+biomass_reaction.lower_bound = beta * GEM.objective.value
+GEM.reactions.get_by_id('ACCOAC').lower_bound = 0.07
 
+# biomass_reaction.lower_bound = fva['minimum'].loc['BIOMASS_Ec_iJO1366_core_53p95M']
+#
+# Change direction of fixed reactions and eliminate blocked reactions
 for rxn_id in fva.index:
     v_min, v_max = fva.loc[rxn_id].minimum, fva.loc[rxn_id].maximum
-    if v_min < 0 and v_max <= 0:
-        ub = min(0, GEM.reactions.get_by_id(rxn_id).upper_bound)
-        GEM.reactions.get_by_id(rxn_id).upper_bound = ub
-    elif v_min >= 0 and v_max > 0:
-        lb = max(0, GEM.reactions.get_by_id(rxn_id).lower_bound)
-        GEM.reactions.get_by_id(rxn_id).lower_bound = lb
-# fva['minimum'].loc['EX_glc__D_e']
-# GEM_rxns
-# GEM.reactions.get_by_id('EX_glc__D_e')
+    # if v_min < 0 and v_max <= 0:
+    #     ub = min(0, GEM.reactions.get_by_id(rxn_id).upper_bound)
+    #     GEM.reactions.get_by_id(rxn_id).upper_bound = ub
+    # elif v_min >= 0 and v_max > 0:
+    #     lb = max(0, GEM.reactions.get_by_id(rxn_id).lower_bound)
+    #     GEM.reactions.get_by_id(rxn_id).lower_bound = lb
+    if v_min == 0 and v_max == 0:
+        GEM.reactions.get_by_id(rxn_id).remove_from_model(remove_orphans=True)
 
-# Remove blocked reactions (using fva bounds)
-blockedRxns = cobra.flux_analysis.find_blocked_reactions(
-    GEM, zero_cutoff=1e-9, open_exchanges=False)
-for rxn in blockedRxns:
-    GEM.reactions.get_by_id(rxn).remove_from_model(remove_orphans=True)
-
-convert_to_irreversible_SRE(GEM)
+# Remove unused metabolites
 _ = cobra.manipulation.delete.prune_unused_metabolites(GEM)
 
 # Load equilibrator data
@@ -157,10 +171,11 @@ for rxn_id in GEM_rxns:
 
         rxn = Reaction.parse_formula(GEM2KEGG.loc[id.lower()].item())
         dG0_prime, dG0_uncertainty = eq_api.dG0_prime(rxn)
-        if 'backward' in direction:
-            dG0_data[rxn_id] = [-dG0_prime, dG0_uncertainty]
-        else:
-            dG0_data[rxn_id] = [dG0_prime, dG0_uncertainty]
+        if dG0_uncertainty < abs(alpha * dG0_prime): # remove uncertain dG0 data
+            if 'backward' in direction:
+                dG0_data[rxn_id] = [-dG0_prime, dG0_uncertainty]
+            else:
+                dG0_data[rxn_id] = [dG0_prime, dG0_uncertainty]
     except Exception:
         pass
 
@@ -218,13 +233,12 @@ print(('There are ' + str(N_rxns - len(Rest_rxns))
 logx_min = (np.log(x_min)) * np.ones((N_mets, 1))
 logx_max = (np.log(x_max)) * np.ones((N_mets, 1))
 v_min = np.array([rxn.lower_bound for rxn in GEM.reactions])
-
 v_max = np.array([rxn.upper_bound for rxn in GEM.reactions])
-# v_min.shape, v_max.shape = (N_rxns, 1), (N_rxns, 1)
 
 # Construct vectors: dG0min, dG0max
 N_rxns_dG0 = len(rxns_with_dG0)
 dG0min, dG0max = np.zeros((N_rxns_dG0, 1)), np.zeros((N_rxns_dG0, 1))
+
 for i, rxn in enumerate(rxns_with_dG0):
     dG0_i, dG0_error_i = dG0_data[rxn]
     dG0min[i] = dG0_i - gamma * dG0_error_i
@@ -236,56 +250,86 @@ N_rxns_no_dG0 = len(Rest_rxns)
 N_irr_with_dG0 = len(Irr_rxns_with_dG0)
 
 # Build constraints matrix (cols: N_mets + 2*N_rxns_dG0 + N_rxns )
-A0 = np.hstack((np.zeros((N_mets, N_mets + 2*N_rxns_dG0)), N)) #Nv = 0
+# D = R*T*N[:, 0:N_rxns_dG0].transpose()
+# D.shape
+# N_rxns_dG0
+# np.diag(v_max[rxns_with_dG0_indices])
+# np.hstack((np.array(rxns_with_dG0_indices), np.concatenate((np.array(Irr_rxns_with_dG0_Idx), np.array(For_rxns_with_dG0_Idx), np.array(Back_rxns_with_dG0_Idx)))))
+#
+# np.concatenate((np.array(Irr_rxns_with_dG0_Idx), np.array(For_rxns_with_dG0_Idx), np.array(Back_rxns_with_dG0_Idx)))
+# np.array(rxns_with_dG0_indices)
 
-A1 = np.hstack((R*T*N[:, rxns_with_dG0_indices].transpose(), np.identity(N_rxns_dG0),
-                M * np.identity(N_rxns_dG0), np.zeros((N_rxns_dG0, N_rxns))))
+# Inequality constraints (logx, dG0, y_irr, y_for, y_back, v_irr_dG0, v_for_dG0, v_back_dG0, v_no_dG0)
+
+# np.array(G)[3*N_rxns_dG0 + 1 : 4*N_rxns_dG0 , N_mets + N_rxns_dG0 + 1:]
+# A4[:,  N_mets + N_rxns_dG0:]
+# A4[np.where(A4 != 0)]
+# A4[0, 1657]
+# N[:, :N_rxns_dG0].transpose().shape
+# N_rxns_dG0
+# N_mets
+# N_mets + N_rxns_dG0
+# np.zeros((N_rxns_dG0, N_rxns_dG0 + N_rxns)).shape
+A1 = np.hstack((R*T*N[:, :N_rxns_dG0].transpose(), np.identity(N_rxns_dG0),
+                M * np.identity(N_rxns_dG0), np.zeros((N_rxns_dG0, N_rxns)))) # dG0
 
 A2 = np.hstack((np.zeros((N_rxns_dG0, N_mets)), -np.identity(N_rxns_dG0),
-                np.zeros((N_rxns_dG0, N_rxns_dG0 + N_rxns))))
+                np.zeros((N_rxns_dG0, N_rxns_dG0 + N_rxns)))) # dG0 min
 
 A3 = np.hstack((np.zeros((N_rxns_dG0, N_mets)), np.identity(N_rxns_dG0),
-                np.zeros((N_rxns_dG0, N_rxns_dG0 + N_rxns))))
+                np.zeros((N_rxns_dG0, N_rxns_dG0 + N_rxns)))) # dG0 max
 
-A4 = np.hstack((np.zeros((N_rev_with_dG0, N_mets + N_rxns_dG0 + N_irr_with_dG0)),
-                np.diag(v_min[For_rxns_with_dG0_Idx]),
-                np.zeros((N_rev_with_dG0, N_rev_with_dG0 + N_irr_with_dG0)),
-                -np.identity(N_rev_with_dG0), np.zeros((N_rev_with_dG0,
-                                                        N_rev_with_dG0 + N_rxns_no_dG0))))
+A4 = np.hstack((np.zeros((N_rxns_dG0, N_mets + N_rxns_dG0)),
+                np.diag(v_min[rxns_with_dG0_indices]), # v min with data
+                -np.identity(N_rxns_dG0), np.zeros((N_rxns_dG0, N_rxns_no_dG0))))
 
-A5 = np.hstack((np.zeros((N_rev_with_dG0, N_mets + N_rxns_dG0 + N_irr_with_dG0 + N_rev_with_dG0)),
-                np.diag(-v_max[For_rxns_with_dG0_Idx]),
-                np.zeros((N_rev_with_dG0, N_irr_with_dG0 + N_rev_with_dG0)),
-                np.identity(N_rev_with_dG0), np.zeros((N_rev_with_dG0, N_rxns_no_dG0))))
+A5 = np.hstack((np.zeros((N_rxns_dG0, N_mets + N_rxns_dG0)),
+                np.diag(-v_max[rxns_with_dG0_indices]), # v max with data
+                np.identity(N_rxns_dG0), np.zeros((N_rxns_dG0, N_rxns_no_dG0))))
 
 A6 = np.hstack((np.zeros((N_rev_with_dG0, N_mets + N_rxns_dG0 + N_irr_with_dG0)),
                 np.identity(N_rev_with_dG0), np.identity(N_rev_with_dG0),
-                np.zeros((N_rev_with_dG0, N_rxns))))
+                np.zeros((N_rev_with_dG0, N_rxns)))) # y+ + y- <= 1
 
-A7 = np.hstack((-np.identity(N_mets), np.zeros((N_mets, 2*N_rxns_dG0 + N_rxns)))) #logx
+A7 = np.hstack((-np.identity(N_mets), np.zeros((N_mets, 2*N_rxns_dG0 + N_rxns)))) # minlogx
 
-A8 = np.hstack((np.identity(N_mets), np.zeros((N_mets, 2*N_rxns_dG0 + N_rxns)))) #logx
+A8 = np.hstack((np.identity(N_mets), np.zeros((N_mets, 2*N_rxns_dG0 + N_rxns)))) # maxlogx
 
 A9 = np.hstack((np.zeros((N_rxns_no_dG0, N_mets + 3*N_rxns_dG0)),
-               -np.identity(N_rxns_no_dG0))) #v no dG0
+               -np.identity(N_rxns_no_dG0))) #vmin no dG0
 
 A10 = np.hstack((np.zeros((N_rxns_no_dG0, N_mets + 3*N_rxns_dG0)),
-                np.identity(N_rxns_no_dG0))) #v no dG0
+                np.identity(N_rxns_no_dG0))) #vmax no dG0
 
-A = cvxopt.matrix(np.vstack((A0, A1, A2, A3, A4, A5, A6, A7, A8, A9, A10)))
-
-b = cvxopt.matrix(np.vstack((np.zeros((N_mets, 1)),
-                             -Gibbs_eps * np.ones((N_rxns_dG0, 1)) + M,
+G = cvxopt.matrix(np.vstack((A1, A2, A3, A4, A5, A6, A7, A8, A9, A10)))
+h = cvxopt.matrix(np.vstack((-Gibbs_eps * np.ones((N_rxns_dG0, 1)) + M,
                              -dG0min, dG0max,
-                             np.zeros((2 * N_rev_with_dG0, 1)),
-                             2 * np.ones((N_rev_with_dG0, 1)),
+                             np.zeros((2 * N_rxns_dG0, 1)),
+                             np.ones((N_rev_with_dG0, 1)),
                              -logx_min, logx_max,
                              -v_min[Rest_rxns_Idx].reshape((-1, 1)),
-                              v_max[Rest_rxns_Idx].reshape((-1, 1)))))
+                             v_max[Rest_rxns_Idx].reshape((-1, 1)))))
 
-BinaryVariables = set(range(N_mets + N_rxns_dG0 + 1, N_mets + 2 * N_rxns_dG0 + 1))
+# Equality constraints
+A = cvxopt.matrix(np.hstack((np.zeros((N_mets, N_mets + 2*N_rxns_dG0)), N))) # Nv = 0
+b = cvxopt.matrix(np.zeros((N_mets, 1)))
 
-# *************************Loop over metabolites******************************************
+BinaryVariables = set(range(N_mets + N_rxns_dG0, N_mets + 2 * N_rxns_dG0))
+
+# vartype = np.repeat("C", N_mets + 2*N_rxns_dG0 + N_rxns)
+# vartype[np.array(list(range(N_mets + N_rxns_dG0 + 1, N_mets + 2 * N_rxns_dG0 + 1)))] = "B"
+# sensevec = np.concatenate((np.repeat("<=", 7435), np.repeat("=", 1232)))
+# Amat = np.vstack((np.array(G), np.array(A)))
+# rhs = np.vstack((h, b))
+# sensevec
+# # Write files to load in R gurobi
+# np.savetxt('A.csv', Amat, delimiter=",")
+# np.savetxt('rhs.csv', rhs, delimiter=",")
+# np.savetxt("cvec.csv", np.array(c), delimiter=",")
+# np.savetxt("sensevec.csv", sensevec, delimiter=",", fmt="%s")
+# np.savetxt("vartype.csv", vartype, delimiter=",", fmt="%s")
+
+# ******************************Loop over metabolites*************************************
 # ****************************************************************************************
 
 # Start iteration over metabolite pairs (variable components)
@@ -294,8 +338,6 @@ if p_mets is None:
     p_mets = range(N_mets)
 if q_mets is None:
     q_mets = range(N_mets)
-p_mets = ['fadh2_c']
-q_mets = ['fad_c']
 if p_mets is not None:
     p_mets = [convertMetIDtoIndex(GEM, met_id) for met_id in p_mets]
 if q_mets is not None:
@@ -309,10 +351,8 @@ for p in p_mets:
             c[[p, q]] = [1, -1]
             c = cvxopt.matrix(c)
 
-            res = glpk.ilp(c, A, b, B=set(BinaryVariables),
-                                    options={'glpk':{'msg_lev':'GLP_MSG_OFF'}})
-            # res = cvxopt.solvers.lp(c, A, b, solver='glpk',
-            #                         options={'glpk':{'msg_lev':'GLP_MSG_OFF'}})
+            res = glpk.ilp(c, G, h, A, b, B=set(BinaryVariables),
+                           options={'glpk':{'msg_lev':'GLP_MSG_OFF'}})
             x = res[1]
             z = x[p] - x[q]
             if z > 0:
@@ -321,8 +361,8 @@ for p in p_mets:
 
                 # Find maximum ratio
                 c *= -1
-                res = glpk.ilp(c, A, b, B=set(BinaryVariables),
-                                        options={'glpk':{'msg_lev':'GLP_MSG_OFF'}})
+                res = glpk.ilp(c, G, h, A, b, B=set(BinaryVariables),
+                               options={'glpk':{'msg_lev':'GLP_MSG_OFF'}})
 
                 x = res[1]
                 z = -x[p] + x[q]
@@ -330,32 +370,123 @@ for p in p_mets:
 
                 met_orders.append([met_i, met_j, min_ratio, max_ratio])
 
+# Testing:*******************************************************************************
+res
 z
+
+def getMILPIndexFromReactionID(rxn_id):
+    return N_mets + 2*N_rxns_dG0 + re_ordered_rxns.tolist().index(rxn_id)
+v = [x[getMILPIndexFromReactionID(id)] for id in GEM_rxns]
+sum(np.dot(N_original_order, v))
+'ACCOAC', 'ATPM', 'BIOMASS_Ec_iJO1366_core_53p95M'
+x[getMILPIndexFromReactionID('ATPM')]
+rxns_with_dG0.tolist().index('ATPM')
+'ATPM' in Irr_rxns_with_dG0
+rxns_with_dG0_indices[rxns_with_dG0.tolist().index('ATPM')]
+
+x[N_mets + N_rxns_dG0 + 15]
+y_irr[0]
+
+GEM.reactions[218]
+v_min[rxns_with_dG0_indices][np.where(v_min[rxns_with_dG0_indices] > 0)]
+GEM.reactions.get_by_id('ATPM')
+
+# Get surely active reactions in optimal space
+active_rxns = []
+for rxn in fva.index:
+    v1, v2 = fva.loc[rxn]
+    if (v1 > 0 and v2 > 0) or (v1 < 0 and v2 < 0):
+        active_rxns.append(rxn)
+
+active_rxns_dG0 = [id for id in active_rxns if id in rxns_with_dG0]
+'ATPM' in active_rxns_dG0
+active_rxns_dG0_fluxes = np.array([x[getMILPIndexFromReactionID(id)] for id in active_rxns_dG0])
+active_rxns_dG0_fluxes
+np.where(np.array(active_rxns_dG0_fluxes) < 1e-9)
+np.array(active_rxns_dG0)[np.where(np.array(active_rxns_dG0_fluxes) < 1e-9)]
+
+v_min[GEM_rxns.tolist().index('ATPM')]
+
+active_rxns_fluxes = np.array([x[getMILPIndexFromReactionID(id)] for id in active_rxns])
+active_rxns_fluxes
+'ATPM' in GEM_rxns[np.where(np.array(v) > 3)]
+
+'PGI_forward' in For_rxns_with_dG0
+# checking y variables
+Irr_active_rxns_dG0 = [id for id in active_rxns if id in Irr_rxns_with_dG0]
+Irr_active_rxns_dG0
+
+yactiveIndices = [Irr_rxns_with_dG0.index(id) for id in Irr_active_rxns_dG0]
+
+y = np.array(x)[N_mets + N_rxns_dG0 : N_mets + 2*N_rxns_dG0].reshape((-1))
+
+y_irr = np.array(x)[N_mets + N_rxns_dG0 : N_mets + N_rxns_dG0 + N_irr_with_dG0]
+y_for = np.array(x)[N_mets + N_rxns_dG0 + N_irr_with_dG0: N_mets + N_rxns_dG0 + N_irr_with_dG0 + N_rev_with_dG0]
+y_back = np.array(x)[N_mets + N_rxns_dG0 + N_irr_with_dG0 + N_rev_with_dG0: N_mets + N_rxns_dG0 + N_irr_with_dG0 + 2*N_rev_with_dG0]
+
+np.hstack((y_for, y_back))
+
+len(y_irr)
+y_irr[15]
+Irr_rxns_with_dG0[0]
+
+
+N_mets + N_rxns_dG0 + N_irr_with_dG0 + N_rev_with_dG0
+
+y[0:22].reshape((-1, 2))
+len(y)
+len(y)
+N_rev_with_dG0
+len(Back_rxns_with_dG0)
+len(Irr_rxns_with_dG0)
+
+y[yactiveIndices]
+
+np.where(y == 0)
+Irr_rxns_with_dG0[4]
+Irr_rxns_with_dG0.index('ATPM')
+
+len(active_rxns)
+len(np.where(active_rxns_fluxes != 0)[0])
+np.where(active_rxns_fluxes != 0)
+np.dot(N, v)
+
+A1[228, np.where(A1[0,:] != 0)[0]]
 met_orders
+# 2.57*Met_73 - 2*57*Met_77 + dG0_478 + M*y_703 < M  - 1e-1
+x[]
+x[np.where(A1[0,:] != 0)]
+# Reaction values
+v = [x[getMILPIndexFromReactionID(id)] for id in GEM_rxns]
+v
+np.where(v_min > 0)
+np.dot(N, x[N_mets + 2*N_rxns_dG0:])
+
+
+x[getMILPIndexFromReactionID('ACCOAC')]
+GEM_rxns.tolist().index('BIOMASS_Ec_iJO1366_core_53p95M')
+fva.loc['BIOMASS_Ec_iJO1366_core_53p95M']
+re_ordered_rxns
 res
 v_min[5]
 x = res[1]
-[x[i] for i in range(N_mets)]
-x[p_mets[0]] - x[q_mets[0]]
+[np.e**x[i] for i in range(N_mets)]
+x[p_mets[0]]
+x[q_mets[0]]
+np.log(1e-1)
+np.where((v_min > 0) & (v_min < 2))
+v_min[np.where((v_min > 0) & (v_min < 1))]
+re_ordered_rxns.tolist().index('BIOMASS_Ec_iJO1366_core_53p95M')
+v[GEM_rxns.tolist().index('BIOMASS_Ec_iJO1366_core_53p95M')]
+# I'm just getting the minimum and maximum concentration values for these pairs... why?
+# Looks like logx are unconstrained...
 def getMILPIndexFromReactionID(rxn_id):
     return N_mets + 2*N_rxns_dG0 + re_ordered_rxns.tolist().index(rxn_id)
-x[getMILPIndexFromReactionID('BIOMASS_Ec_iJO1366_WT_53p95M')]
-getMILPIndexFromReactionID('BIOMASS_Ec_iJO1366_WT_53p95M')
-x[N_mets + 2*N_rxns_dG0 + 1]
-min(v_max)
+# x[getMILPIndexFromReactionID('BIOMASS_Ec_iJO1366_WT_53p95M')]
 
-getMILPIndexFromReactionID('BIOMASS_Ec_iJO1366_WT_53p95M')
 
-GEM.reactions.get_by_id('BIOMASS_Ec_iJO1366_WT_53p95M')
+v_min[np.where(v_min > 0)]
 
-convertRxnIndexToID(GEM, 5)
-[rxn.id for rxn in GEM.reactions]
-GEM.reaction
-res
-from cvxopt import glpk
-glpk
-
-# SOME PROBLEM with the ILP solver, check it out!
 
     # ************************************* Graph************************************
     # *******************************************************************************
@@ -419,7 +550,6 @@ glpk
 
 
     #*************************************Output************************************
-
     #*******************************************************************************
 
     # write to json
