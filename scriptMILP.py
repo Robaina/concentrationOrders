@@ -16,19 +16,20 @@ import os
 from six import iteritems
 import re
 
-# Constants (dG0 in kJ/mol)
-R = 8.3144598 # kJ. K^-1. mmol^-1
+# Constants (dG0 in kJ/mol) original dG0 data units
+R = 8.3144598 * 1e-6 # kJ. K^-1. mmol^-1
 T = 310.15 # 298.15 # K
 
 # Parameters
-numerator_metabolites = p_mets = ['g6p_c']
-denominator_metabolites = q_mets = ['f6p_c']
+loopless_fva = True
+numerator_metabolites = p_mets = ['g6p_c', 'h_p', 'h_c', 'fadh2_c']
+denominator_metabolites = q_mets = ['f6p_c', 'h_c', 'h_p', 'fad_c']
 uncertainty_threshold = alpha = 10
 biomass_threshold = beta = 1
 dG0_error_fraction = gamma = 1
 Gibbs_eps = 1e-9 # kJ/mmol
 M = 1e8
-x_min, x_max = 1e-7, 1e2 # mM
+x_min, x_max = 1e-4, 2e2 # mM
 # Fluxes in mmol.gDW^-1.min^-1
 # (in Teppe et al 2013* they use 1e-5, 1e-1!
 # https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0075370)
@@ -108,7 +109,7 @@ GEM = cobra.io.load_json_model('iJO1366.json')
 print('Running flux variability analysis...')
 fva = flux_variability_analysis(GEM, reaction_list=None,
                                 fraction_of_optimum=beta, processes=2,
-                                loopless=False).round(decimals=9) # to few decimal places will artificialyy block reactions!
+                                loopless=loopless_fva).round(decimals=8) # to few decimal places will artificialyy block reactions!
 # fva.to_csv('iJO1366fva.csv')
 GEM.optimize()
 biomass_reaction = GEM.reactions.get_by_id('BIOMASS_Ec_iJO1366_core_53p95M')
@@ -117,9 +118,8 @@ biomass_reaction.lower_bound = beta * GEM.objective.value
 # Update lower bound of fixed reactions and eliminate blocked ones
 for rxn_id in fva.index:
     v_min, v_max = fva.loc[rxn_id].minimum, fva.loc[rxn_id].maximum
-    if v_min > 0:
+    if v_min > 0 or v_max < 0:
         GEM.reactions.get_by_id(rxn_id).lower_bound = v_min
-    if v_max < 0:
         GEM.reactions.get_by_id(rxn_id).upper_bound = v_max
     if v_min == 0 and v_max == 0:
         GEM.reactions.get_by_id(rxn_id).remove_from_model(remove_orphans=True)
@@ -154,7 +154,7 @@ for rxn_id in GEM_rxns:
             id, direction = re.split('_(forward|backward)', rxn_id)[:2]
 
         rxn = Reaction.parse_formula(GEM2KEGG.loc[id.lower()].item())
-        dG0_prime, dG0_uncertainty = eq_api.dG0_prime(rxn)
+        dG0_prime, dG0_uncertainty = np.array(eq_api.dG0_prime(rxn)) * 1e-3 # convert to kJ/mmol
         if dG0_uncertainty < abs(alpha * dG0_prime): # remove uncertain dG0 data
             if 'backward' in direction:
                 dG0_data[rxn_id] = [-dG0_prime, dG0_uncertainty]
@@ -223,9 +223,21 @@ dG0_constrained_mets = [met.id for met in GEM.metabolites
                                for rxn_id in [rxn.id for rxn in met.reactions])]
 N_met_pairs = int(0.5 * len(dG0_constrained_mets) * (len(dG0_constrained_mets) - 1))
 
-print(('There are ' + str(N_rxns - len(Rest_rxns))
+# Define dimensions of submatrices
+N_rev_with_dG0 = len(For_rxns_with_dG0)
+N_rxns_no_dG0 = len(Rest_rxns)
+N_irr_with_dG0 = len(Irr_rxns_with_dG0)
+N_fixed_rxns_dG0 = len(Fixed_rxns_with_dG0)
+N_unfixed_rxns_dG0 = len(Unfixed_rxns_with_dG0)
+
+print(('There are ' + str(N_rxns - N_rxns_no_dG0)
       + ' reactions with dG0 data and '
-      + str(N_met_pairs) + ' metabolite pairs'))
+      + str(N_met_pairs) + ' metabolite pairs and ' + str(N_fixed_rxns_dG0)
+      + ' fixed reactions with dG0'))
+
+# Write file with fixed reactions with dG0
+# data = [id.lower() for id in Fixed_rxns_with_dG0]
+# np.savetxt('Fixed_Irr_dG0_MILP.csv', data, delimiter=',', fmt='%s')
 
 # Standard in cvxopt is Ax <= b so have to change signs and add epsilon to rhs
 # Bounds
@@ -242,13 +254,6 @@ for i, rxn in enumerate(rxns_with_dG0):
     dG0_i, dG0_error_i = dG0_data[rxn]
     dG0min[i] = dG0_i - gamma * dG0_error_i
     dG0max[i] = dG0_i + gamma * dG0_error_i
-
-# Define dimensions of submatrices
-N_rev_with_dG0 = len(For_rxns_with_dG0)
-N_rxns_no_dG0 = len(Rest_rxns)
-N_irr_with_dG0 = len(Irr_rxns_with_dG0)
-N_fixed_rxns_dG0 = len(Fixed_rxns_with_dG0)
-N_unfixed_rxns_dG0 = len(Unfixed_rxns_with_dG0)
 
 # Build constraints matrix (cols: N_mets + N_rxns_dG0 + N_unfixed_rxns_dG0 + N_rxns )
 
@@ -353,14 +358,14 @@ for p in p_mets:
                                options={'glpk':{'msg_lev':'GLP_MSG_OFF'}})
 
                 x = res[1]
-                z = -x[p] + x[q]
+                z = x[p] - x[q]
                 max_ratio = np.e**z
 
                 met_orders.append([met_i, met_j, min_ratio, max_ratio])
 
 # Testing:*******************************************************************************
 res
-z
+print(met_orders)
 
 def getMILPIndexFromReactionID(rxn_id):
     return N_mets + N_rxns_dG0 + N_unfixed_rxns_dG0 + re_ordered_rxns.tolist().index(rxn_id)
@@ -368,8 +373,13 @@ v = [x[getMILPIndexFromReactionID(id)] for id in GEM_rxns]
 sum(np.dot(N_original_order, v))
 'ACCOAC', 'ATPM', 'BIOMASS_Ec_iJO1366_core_53p95M'
 x[getMILPIndexFromReactionID('ATPM')]
+import numpy as np
+MILP_data = np.genfromtxt('Fixed_Irr_dG0_MILP.csv', delimiter=',', dtype='U20')
+LP_data = np.genfromtxt('Fixed_Irr_dG0_LP.csv', delimiter=',', dtype='U20')
+unique_LP = np.setdiff1d(LP_data, MILP_data)
+GEM.reactions.get_by_id('FBA')
 
-
+'ACCOAL' in Irr_rxns_with_dG0
 
 # ************************************* Graph*********************************************
 # ****************************************************************************************

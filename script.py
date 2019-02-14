@@ -21,7 +21,7 @@ if __name__ == '__main__':
     biomass_threshold = beta = 1
     dG0_error_fraction = gamma = 1
     Gibbs_eps = 1e-6 # kJ/mol
-    x_min, x_max = 1e-7, 1e-1 # M (in Teppe et al 2013* they use 1e-5, 1e-1!!
+    x_min, x_max = 1e-6, 1e-1 # M (in Teppe et al 2013* they use 1e-5, 1e-1!!
 	#https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0075370)
     fileName = 'graphData.json'
     dirName = 'Cond1'
@@ -33,7 +33,7 @@ if __name__ == '__main__':
     #*******************************************************************************
 
     # Load equilibrator data
-    eq_api = ComponentContribution(pH=7.5, ionic_strength=0.25) 
+    eq_api = ComponentContribution(pH=7.5, ionic_strength=0.25)
 
     # Get iJO1366 reactions as KEGG reaction strings
     iJO1366ToKEGG = pd.read_csv(
@@ -73,7 +73,7 @@ if __name__ == '__main__':
     start = time.time()
     fva = flux_variability_analysis(iJO1366, reaction_list=None,
                                   fraction_of_optimum=beta, processes=2,
-                                  loopless=True).round(decimals=4)
+                                  loopless=False).round(decimals=8)
 
     end = time.time()
     fva.to_csv('iJO1366fva.csv')
@@ -83,17 +83,23 @@ if __name__ == '__main__':
 
 
     #**************************** Irreversible reactions****************************
-	
-    #*******************************************************************************  
+
+    #*******************************************************************************
+
+    # Remove irreversible reactions unique to this LP formulation
+    MILP_data = np.genfromtxt('Fixed_Irr_dG0_MILP.csv', delimiter=',', dtype='U20')
+    LP_data = np.genfromtxt('Fixed_Irr_dG0_LP.csv', delimiter=',', dtype='U20')
+    unique_LP = np.setdiff1d(LP_data, MILP_data)
 
     # loop over fva limits
     Irr_rxns = {}
     for rxn_id in fva.index:
-        v_min, v_max = fva.loc[rxn_id].minimum, fva.loc[rxn_id].maximum
-        if v_min < 0 and v_max <= 0:
-            Irr_rxns[rxn_id.lower()] = 'backward'
-        elif v_min >= 0 and v_max > 0:
-            Irr_rxns[rxn_id.lower()] = 'forward'
+        if rxn_id not in unique_LP:
+            v_min, v_max = fva.loc[rxn_id].minimum, fva.loc[rxn_id].maximum
+            if v_min < 0 and v_max <= 0:
+                Irr_rxns[rxn_id.lower()] = 'backward'
+            elif v_min >= 0 and v_max > 0:
+                Irr_rxns[rxn_id.lower()] = 'forward'
 
 
     # Get stoichiometric matrix (irreversible reactions with Gibb's energy data)
@@ -103,7 +109,7 @@ if __name__ == '__main__':
         rxn_id = rxn.id.lower()
         cond = ( (rxn_id not in Irr_rxns.keys())
                 or (rxn_id in Irr_rxns.keys() and rxn_id not in rxnGibbs.keys())
-                or (rxn_id in rxnGibbs.keys() 
+                or (rxn_id in rxnGibbs.keys()
                     and rxnGibbs[rxn_id][1] > alpha * rxnGibbs[rxn_id][0]) )
         return cond
 
@@ -127,11 +133,15 @@ if __name__ == '__main__':
         if Irr_rxns[rxn] == 'backward':
             N_Irr[rxn] *= -1
             N_Irr.rename(columns={rxn: rxn + '_back'}, inplace=True)
-			
+
     n_rxns, n_mets = N_Irr.values.transpose().shape
     N_met_pairs = int(0.5 * n_mets * (n_mets - 1))
     print('There are ' + str(n_rxns) + ' irreversible reactions with dG0 data and ' + str(N_met_pairs) + ' metabolite pairs')
 
+	# Save irreversible reactions with DG0
+    # import re
+    # dat = [re.sub('_back', '', id) for id in N_Irr.columns]
+    # np.savetxt('Fixed_Irr_dG0_LP.csv', dat, delimiter=',', fmt='%s')
 
     #**************************** Linear program************************************
     # USE cvxopt.glpk.ilp()
@@ -188,7 +198,7 @@ if __name__ == '__main__':
 
                     met_orders.append([met_i, met_j, min_ratio, max_ratio])
 
-					
+
     #************************************* Graph************************************
 
     #*******************************************************************************
@@ -275,7 +285,7 @@ if __name__ == '__main__':
                      +'X_min: ' + str(x_min) + ' M' + '\n'
                      +'X_max: ' + str(x_max) + ' M' + '\n'
                      +'Notes: ' + notes
-                    )    
+                    )
     with open('data/conditions/' + dirName + '/' + fileName, 'w') as outfile:
         outfile.write("data = ")
         json.dump(data, outfile)
