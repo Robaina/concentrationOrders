@@ -13,3 +13,5 @@ Iterate only over metabolite pairs which are represented in the submatrix genera
 Ok, I think I got it. All irreversible reactions with dG0 and with v_min > 0 should have y_irr = 1, this is why ATPM was not getting the minimum of 3.15, because y_irr was set to 0!!
 
 In fact, to diminish the number of binary variables, I would go ahead and identify the active reactions per fva first, and then remove the y_irr from those, since they have to be active.
+
+Ok, at the end it was the typical error: python starts indexing at 0!!
