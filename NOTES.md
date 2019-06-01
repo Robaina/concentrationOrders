@@ -15,3 +15,11 @@ Ok, I think I got it. All irreversible reactions with dG0 and with v_min > 0 sho
 In fact, to diminish the number of binary variables, I would go ahead and identify the active reactions per fva first, and then remove the y_irr from those, since they have to be active.
 
 Ok, at the end it was the typical error: python starts indexing at 0!!
+
+It works!!!
+
+## Fixing certain concentrations
+In Thermodynamics-based metabolic analysis, authors fixed the concentration of intracellular protons to 1e-7M, which corresponds to pH = 7. Also, internal oxygen concentration cannot be higher than that of outside, since no reaction in E. coli produces oxygen and oxygen diffuses passively following a gradient.
+
+## Using a pH range instead of pH = 7
+Perhaps good idea to use a range of pH values, such as 7.2 - 7.7 when calculating $\Delta G$s, one would use then the minimum and maximum values of these in the bounds.

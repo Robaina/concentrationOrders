@@ -1,0 +1,10 @@
+Diectory: Cond1
+T: 310.15 K
+dG0 uncertainty threshold: 10
+dG0 allowed error fraction: 1
+Biomass threshold: 1
+Gibbs_eps: 1e-09 kJ/mol
+X_min: 0.0001 M
+X_max: 200.0 M
+Loopless FVA: True
+Notes: Original iJO1366 flux bounds, loopless=True, remove_orphans=True, in nanomolar

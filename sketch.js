@@ -3,7 +3,7 @@
 */
 let rxnNameLabels = rxnLabels = [];
 let option;
-let selectedNodeID = "#25aics_c";
+let selectedNodeID = "#nad_c";
 let aboutButtonPressed = false;
 let button, selectedContainer, buttonPressed;
 let oldLabel, oldColor;

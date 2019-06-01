@@ -1,0 +1,12 @@
+Directory: Cond2
+Sun, 17 Feb 2019 18:37:42 +0000
+T: 310.15 K
+Intracellular pH: 7.3
+dG0 uncertainty threshold: 100
+dG0 allowed error fraction: 1
+Biomass threshold: 1
+Gibbs_eps: 1e-08 kJ/mmol
+X_min: 0.0001 mM
+X_max: 200.0 mM
+Loopless FVA: False
+Notes: Growth on Glucose, 10 mmol.min^-1.gDW^-1, MILP formulation!

@@ -1,9 +1,9 @@
 let options = {
     // dagre options
     name: 'dagre',
-    nodeSep: 500, // the separation between adjacent nodes in the same rank
+    nodeSep: 1000, // the separation between adjacent nodes in the same rank
     edgeSep: undefined, // the separation between adjacent edges in the same rank
-    rankSep: 2000, // the separation between  nodes in different ranks
+    rankSep: 10000, // the separation between  nodes in different ranks
     rankDir: 'TB', // 'TB' for top to bottom flow, 'LR' for left to right,
     ranker: 'tight-tree', // Type of algorithm to assign a rank to each node in the input graph. Possible values: 'network-simplex', 'tight-tree' or 'longest-path'
     minLen: function( edge ){ return 1; }, // number of ranks to keep between the source and target of the edge
