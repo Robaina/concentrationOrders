@@ -24,6 +24,7 @@
 \makeatother
 
 \newcommand{\note}[2][]{\added[#1,remark={#2}]{}}
+\DeclareMathOperator*{\argmin}{arg\,min} 
 
 \begin{document}
   \maketitle
@@ -164,6 +165,40 @@
   \end{align}
 
   \noindent in which the two steps in \ref{eq:2} and \ref{eq:5} are merged together in a single MILP. Some reactions are considered irreversible, in which case only $y^+$ and $v^+$ exist. Further, some irreversible reactions have a default lower bound $v_{min(j)} > 0$, such as the biomass reaction, in which $v_{bio} \geq \gamma v^*_{bio}$, in this cases no binary variable is needed, since the reaction always carries flux in the feasible space. The advantage is that loopless fva is no longer needed, while the disadvantage is that the MILP is harder to solve than the previous LPs. Also, I need to split reversible reactions since the order of the reaction quotient and the value of the Gibbs energy is inverted! Actually, I don't see the advantage here... if a reaction is irreversible in the feasible space of \ref{eq:2} then it is also irreversible in \ref{eq:7}, it is the same feasible space with respect to flux values after all. No... because there could be two flux distributions in the feasible space in which one reaction is running in the opposite direction but in both cases render the same biomass production. We could use this flux distributions to find the minimum ratio of concentrations as well, but are eliminated in the first step since the reaction's direction is not consistent.
+
+  The previous method may take a lot of computational time. I'll try using a pre-processing step to select candidate concentration-ordered pairs, just like I did with the flux values. To this end, I'll have to implement my own sampling procedure. Namely, we first generate a random concentration vector within the allowed concentration ranges $x_{min} \leq x_{rand} \leq x_{max}$ and then find the closest feasible $x$ with the following MIQP:
+
+  \begin{align}
+    \begin{aligned}
+      \label{eq:9}
+      &\log x^* = \argmin_{\substack{ \log{x} \in \rm I\!R^m, \\
+                            v \in \rm I\!R^n_{\geq 0}, \\
+                            \Delta^{\circ} G_{r} \in \rm I\!R^k, \\
+                            y \in \{0, 1\}^k }} \; ||\log{x_{rand}} - \log{x}||_2
+      \\
+      &\mathrm{s.t.}
+      \\
+      &Sv = 0
+      \\
+      &v_{bio} \geq \gamma v^*_{bio}
+      \\
+      &\Delta^{\circ} G_{r(j)} + RT \sum_i n_{ij} \log{x_i} < 0 \; \forall j \in \mathrm{F_{\Delta^{\circ} G_{r}}}
+      \\
+      &\Delta^{\circ} G_{r(j)} + RT \sum_i n_{ij} \log{x_i} - (1 - y_j^{(+, -)})M< 0 \; \forall j \in \mathrm{R_{\Delta^{\circ} G_{r}}}
+      \\
+      &\Delta^{\circ} G_{r}^{\dagger} - \epsilon \leq \Delta^{\circ} G_{r} \leq \Delta^{\circ} G_{r}^{\dagger} + \epsilon
+      \\
+      &\log{x}_{min} \leq \log{x} \leq \log{x}_{max}
+      \\
+      &v_{min} \leq v \leq v_{max}
+      \\
+      &y_j^{(+, -)} v_{min(j)} \leq v^{(+, -)}_j \leq y_j^{(+, -)} v_{max(j)} \; \forall j \in \mathrm{R_{\Delta^{\circ} G_{r}}}
+      \\
+      &y^+ + y^- \leq 1
+    \end{aligned}
+  \end{align}
+
+  We just need to repeat this process n times to generate a sample. Then eliminate all metabolite pairs with inconsistent order relation in the sample.
 
 
 

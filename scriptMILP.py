@@ -24,22 +24,23 @@ if __name__ == '__main__':
     loopless_fva = False
     numerator_metabolites = p_mets = None
     denominator_metabolites = q_mets = None
-    uncertainty_threshold = alpha = 0.1
+    dG0_uncertainty_threshold = alpha = 0.1 # filter noisy dG0 data, percentace of mean
     carbon_source = 'EX_glc__D_e'
     uptake_rate = 10 # mmol.min^-1.gDW^-1
     biomass_threshold = beta = 0.95
-    dG0_error_fraction = gamma = 1
+    dG0_error_fraction = gamma = 1 # allowed dG0 deviation from measured values
     Gibbs_eps = 1e-8 # kJ/mmol
-    M = 1e8
+    M = 1e8 # big number to unconstrain reactions with no dG0 data
     x_min, x_max = 1e-4, 2e2 # mM
     Intracellular_pH = pH_i = 7.3
-    pH_deviation = delta_pH = 0
+    pH_deviation = delta_pH = 0.3
     maximum_internal_O2 = maxo2 = 2e2#9e-3 # mM
     # Fluxes in mmol.gDW^-1.min^-1
     # (in Teppe et al 2013* they use 1e-5, 1e-1!
     # https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0075370)
     fileName = 'graphData.json'
     dirName = 'Cond1'
+    directory ='data/conditions/' + dirName
     notes = 'Growth on Glucose, MILP formulation!'
 
     # ******************************* Load model, dG0********************************
@@ -479,7 +480,7 @@ if __name__ == '__main__':
     # write to json
     print('Total time: ' + str(end - start) + ' seconds')
     print('Writing files...')
-    directory ='data/conditions/' + dirName
+    
     if not os.path.exists(directory):
         os.makedirs(directory)
 

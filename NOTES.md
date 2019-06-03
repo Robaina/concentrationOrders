@@ -23,3 +23,6 @@ In Thermodynamics-based metabolic analysis, authors fixed the concentration of i
 
 ## Using a pH range instead of pH = 7
 Perhaps good idea to use a range of pH values, such as 7.2 - 7.7 when calculating $\Delta G$s, one would use then the minimum and maximum values of these in the bounds.
+
+## UPDATE: 02/VI/2019
+Tried the code with 1% deviation of the dG0 mean to filter the data (Cond1). Obtained a graph with only 5 metabolites and took around 5000 seconds. Clearly need to do preprocessing if I want to soften the filter. I could apply the same idea used in the flux orders: sample the space of possible concentrations and discard the pairs with conflicting order relation.

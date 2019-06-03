@@ -1,10 +1,15 @@
-Diectory: Cond1
+Directory: Cond1
+Sun, 02 Jun 2019 00:25:43 +0000
 T: 310.15 K
-dG0 uncertainty threshold: 10
+Intracellular pH: 7.3 ± 0.3
+Maximum internal O_2: 200.0 mM 
+dG0 uncertainty threshold: 0.1
 dG0 allowed error fraction: 1
-Biomass threshold: 1
-Gibbs_eps: 1e-09 kJ/mol
-X_min: 0.0001 M
-X_max: 200.0 M
-Loopless FVA: True
-Notes: Original iJO1366 flux bounds, loopless=True, remove_orphans=True, in nanomolar
+Carbon uptake reaction: EX_glc__D_e
+Uptake rate: 10 mmol.min^-1.gDW^-1
+Biomass threshold: 0.95
+Gibbs_eps: 1e-08 kJ/mmol
+X_min: 0.0001 mM
+X_max: 200.0 mM
+Loopless FVA: False
+Notes: Growth on Glucose, MILP formulation!
