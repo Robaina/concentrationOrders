@@ -24,7 +24,7 @@
 \makeatother
 
 \newcommand{\note}[2][]{\added[#1,remark={#2}]{}}
-\DeclareMathOperator*{\argmin}{arg\,min} 
+\DeclareMathOperator*{\argmin}{arg\,min}
 
 \begin{document}
   \maketitle
@@ -197,6 +197,31 @@
       &y^+ + y^- \leq 1
     \end{aligned}
   \end{align}
+
+  Alternative, we can use the $\ell_{1}$ norm instead of the $\ell_{2}$ norm and solve a MILP instead (doable in cvxopt) directly. To this end, we need to transform the objective and add two intermediate variables $q^+, q^-$:
+
+  \begin{align}
+    \begin{aligned}
+      \label{eq:10}
+      &\log x^* = \argmin_{\substack{ \log{x} \in \rm I\!R^m, \\
+                            v \in \rm I\!R^n_{\geq 0}, \\
+                            \Delta^{\circ} G_{r} \in \rm I\!R^k, \\
+                            y \in \{0, 1\}^k }} \; \sum_{i=1}^m {(q^+_i + q^-_i)}
+      \\
+      &\mathrm{s.t.}
+      \\
+      &q^+ - q^- = \log{x_{rand}} - \log{x}
+      \\
+      &q^+, q^- \geq 0
+      \\
+      &\dots
+    \end{aligned}
+  \end{align}
+
+
+
+
+
 
   We just need to repeat this process n times to generate a sample. Then eliminate all metabolite pairs with inconsistent order relation in the sample.
 

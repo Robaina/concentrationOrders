@@ -361,6 +361,9 @@ if __name__ == '__main__':
 
     # Start iteration over metabolite pairs (variable components)
     met_orders = []
+    """
+    Currently you are looking at metabolites that have at least one reaction involved with dG0 data... but metabolites without such reaction can also be constrained bt the rest, right? Do the iteration in the pre-processing step over all metabolites instead.
+    """
     if p_mets is None:
         p_mets = [convertMetIDtoIndex(GEM, met_id) for met_id in dG0_constrained_mets]
     else:
@@ -480,7 +483,7 @@ if __name__ == '__main__':
     # write to json
     print('Total time: ' + str(end - start) + ' seconds')
     print('Writing files...')
-    
+
     if not os.path.exists(directory):
         os.makedirs(directory)
 
