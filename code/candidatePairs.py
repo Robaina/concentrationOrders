@@ -1,22 +1,28 @@
 import numpy as np
-import pandas as pd
-import json
+# import pandas as pd
+# import json
 import time
-import os
-from six import iteritems
-import re
-
-import cobra
-from cobra.core.reaction import Reaction as cobraReaction
-from cobra.flux_analysis.variability import flux_variability_analysis
-from cobra.util.solver import set_objective
-from equilibrator_api import ComponentContribution, Reaction
+# import os
+# from six import iteritems
+# import re
+#
+# import cobra
+# from cobra.core.reaction import Reaction as cobraReaction
+# from cobra.flux_analysis.variability import flux_variability_analysis
+# from cobra.util.solver import set_objective
+# from equilibrator_api import ComponentContribution, Reaction
 import cvxopt
 from cvxopt import glpk
-import networkx as nx
+# import networkx as nx
 
+# Call R function
+#import rpy2.robjects as ro
+#from rpy2.robjects import numpy2ri
+#ro.r['source']('Rgurobi.R')
+#gurobi = ro.r['solveGurobiProblem']
+#numpy2ri.activate()
 
-#from parameters import *
+from gurobipyModelGenerator import constructGurobiModel, updateRHS
 from MIPmodel import *
 
 """
@@ -55,7 +61,7 @@ q_constraint = np.hstack((np.identity(N_mets),
 Ap = cvxopt.matrix(np.vstack((A_temp, q_constraint)))
 
 # Create objective vector: q+ + q-
-c = cvxopt.matrix(np.concatenate((
+cp = cvxopt.matrix(np.concatenate((
                              np.zeros(N_mets + N_rxns_dG0 + N_unfixed_rxns_dG0 + N_rxns),
                              np.ones(2 * N_mets))))
 
@@ -64,41 +70,87 @@ c = cvxopt.matrix(np.concatenate((
 start = time.time()
 logx_samples = []
 n = 0
+
+cp = np.array(cp).flatten()
+Gp = np.array(Gp)
+hp = np.array(hp).flatten()
+Ap = np.array(Ap)
+bp = np.vstack((np.array(b), np.zeros((N_mets, 1)))).flatten()
+binaryVariables = np.array(BinaryVariables)
+
+# Create gurobi model
+sample_model = constructGurobiModel(cp, Gp, hp, Ap, bp, sense='min',
+                                    binaryVariables=binaryVariables,
+                                    variableNames=None, modelName=None)
+sample_model.setParam('OutputFlag', False)
+
+print(' ')
+print('Finding candidate pairs...')
 while len(logx_samples) < number_preprocessing_samples:
     try:
         # Create random logx vector
         rand_logx = (logx_max - logx_min) * np.random.rand(N_mets, 1) + logx_min
 
         # Add new term to equality rhs
-        bp = cvxopt.matrix(np.vstack((np.array(b), rand_logx)))
-        res = glpk.ilp(c, Gp, hp, Ap, bp, B=set(BinaryVariables),
-                       #options={'tm_lim': 5000, 'mipgap': 10})
-                       options={'msg_lev':'GLP_MSG_OFF',
-                                'mipgap': 10,
-                                'tm_lim': 5000})
+        sample_model = updateRHS(sample_model, rand_logx)
+        # bp = cvxopt.matrix(np.vstack((np.array(b), rand_logx)))
+        # bp = np.vstack((np.array(b), rand_logx))
 
-        logx = np.array(res[1][:N_mets]).flatten()
-        logx_samples.append(logx)
-        n += 1
-        print(n)
+        # R gurobi
+        # res = gurobi(c, Gp, hp, Ap, bp,
+                                 # binaryVariables=BinaryVariables+1)#, modelsense="min")
+        # logx = res[0]
+        # status = res[1]
+
+        # glpk
+        # res = glpk.ilp(c, Gp, hp, Ap, bp, B=set(BinaryVariables),
+        #                options={'msg_lev':'GLP_MSG_OFF',
+        #                         'mipgap': 10,
+        #                         'tm_lim': 5000})
+        #
+        # logx = np.array(res[1][:N_mets]).flatten()
+
+        # Python gurobi
+        sample_model.optimize()
+        
+        # Retrieve all alternative MIP solutions (we don't care about optimality)
+        for k in range(sample_model.SolCount):
+            sample_model.setParam('SolutionNumber', k)
+            logx = sample_model.Xn[:N_mets]
+            logx_samples.append(logx)
+            n += 1
+            
+#        x, status = sample_model.X, sample_model.Status
+#        logx = x[:N_mets]
+#        logx_samples.append(logx)
+#        n += 1
+        print(('Sampling... ({} of '
+               + str(number_preprocessing_samples)
+               + ')').format(n), end='\r')
 
     except Exception:
         print('Error occurred!')
         pass
 
 logx_samples = np.array(logx_samples)
+print('Final sample size (alternative MIP solutions): {}'.format(len(logx_samples)))
+
 
 # Check for candidate ordered metabolite pairs
 def isCandidatePair(met_i_values, met_j_values):
     return all(met_i_values >= met_j_values)
 
+
 candidate_pairs = []
 for met_i in range(N_mets):
     for met_j in range(N_mets):
-        met_i_values, met_j_values = logx_samples[:, met_i], logx_samples[:, met_j]
-        if isCandidatePair(met_i_values, met_j_values):
-            candidate_pairs.append([met_i, met_j])
+        if met_i != met_j:
+            met_i_values = logx_samples[:, met_i]
+            met_j_values = logx_samples[:, met_j]
+            if isCandidatePair(met_i_values, met_j_values):
+                candidate_pairs.append([met_i, met_j])
 
 end = time.time()
-print('Total time: ' + str(end - start) + ' seconds')
-print(len(candidate_pairs))
+print(' ')
+print('Total time: {:.2f} seconds'.format(end - start))
+print('There a total of ' + str(len(candidate_pairs)) + ' candidate pairs')

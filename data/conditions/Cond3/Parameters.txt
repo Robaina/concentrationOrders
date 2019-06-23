@@ -1,9 +1,15 @@
-Diectory: Cond3
+Directory: Cond3
+Sun, 23 Jun 2019 13:21:37 +0000
 T: 310.15 K
-dG0 uncertainty threshold: 0.5
+Intracellular pH: 7.3 ± 0.3
+Maximum internal O_2: 0.25 mM 
+dG0 uncertainty threshold: 1
 dG0 allowed error fraction: 1
-Biomass threshold: 0.75
-Gibbs_eps: 1e-06 kJ/mol
-X_min: 1e-07 M
-X_max: 0.1 M
-Notes: Original iJO1366 flux bounds, added maximum ratio, new formulation
+Carbon uptake reaction: EX_glc__D_e
+Uptake rate: 10 mmol.min^-1.gDW^-1
+Biomass threshold: 0.95
+Gibbs_eps: 1e-08 kJ/mmol
+X_min: 0.0001 mM
+X_max: 200.0 mM
+Loopless FVA: False
+Notes: Growth on Glucose, constrained maximum [o2]

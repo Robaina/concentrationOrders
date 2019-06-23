@@ -1,7 +1,7 @@
-Directory: Cond7
-Sun, 23 Jun 2019 14:19:09 +0000
+Directory: Cond8
+Sun, 23 Jun 2019 14:26:11 +0000
 T: 310.15 K
-Intracellular pH: 7.2 ± 0.2
+Intracellular pH: 7.3 ± 0.2
 Maximum internal O_2: 0.025 mM 
 dG0 uncertainty threshold: 1
 dG0 allowed error fraction: 1

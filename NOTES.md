@@ -53,3 +53,12 @@ Sampling takes too much time when delta_dG0 > 0.1 because there are too many con
 2. Use the MILP to obtain the path of alternative suboptimal solutions as my sample. Perhaps glpk even provides this option.
 3. Use Gurobi, I have the license available for one more year...
 4. Perhaps there is another, cheaper, method to sample the feasible space via a MILP? i.e., a different objective function that is less demanding. 
+
+So, I implemented these ideas and I have been able to reduce the computational time significantly.
+
+## A coment on results so far 
+I've seen that the number of ordered pairs is extremely sensitivy to:
+1. The global concentration lower bound (almost no pairs when x_min < 1e-4)
+2. The minimum pH value (many pairs when pH_min > 7.1)
+
+Why is that? What can we conclude from this? What other experiments, observations are pertinent? 

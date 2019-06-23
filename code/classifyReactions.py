@@ -1,19 +1,19 @@
 import numpy as np
-import pandas as pd
-import json
-import time
-import os
-from six import iteritems
-import re
+# import pandas as pd
+# import json
+# import time
+# import os
+# from six import iteritems
+# import re
 
 import cobra
-from cobra.core.reaction import Reaction as cobraReaction
-from cobra.flux_analysis.variability import flux_variability_analysis
-from cobra.util.solver import set_objective
-from equilibrator_api import ComponentContribution, Reaction
-import cvxopt
-from cvxopt import glpk
-import networkx as nx
+# from cobra.core.reaction import Reaction as cobraReaction
+# from cobra.flux_analysis.variability import flux_variability_analysis
+# from cobra.util.solver import set_objective
+# from equilibrator_api import ComponentContribution, Reaction
+# import cvxopt
+# from cvxopt import glpk
+# import networkx as nx
 
 
 from parameters import *
