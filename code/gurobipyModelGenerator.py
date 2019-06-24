@@ -1,65 +1,23 @@
 """
-This code allows to construct gurobi models in python from numpy or scipy arrays of
-constraints which is oftentimes a more convenient formulation to the general
-optimizationproblem: min cx : lb <= Ax <= ub where some variables can be integers.
-Currently only support the definion of (MI)LP models
+The Gurobi python interface does not allow to build models in matrix form unlike both the
+R and MATLAB interfaces. Instead constraints and variables have to be added iteratively.
+This class allows to construct gurobi models in python from numpy arrays of constraints
+which is oftentimes a more convenient formulation.
 """
-__author__ = "Semidan Robaina Estevez"
-
 import numpy as np
 from gurobipy import Model, GRB
 
-
-class GurobiModel:
-
-    """
-    Construct gurobipy model from a matrix formulation
-
-    Arguments:
-    ---------
-    c: 1D array, the objective vector
-    A: 2D array, the constraint matrix
-    lb, ub: 1D array, lower and upper bounds for the variables
-    sense: str, the optimization sense, 'min' or 'max'
-    binaryVariables: array (optional), column indices of A corresponding
-                     to binary variables
-    variableNames: list of str (optional), the names of the variables
-        """
-
-    def __init__(self, c, G, h, A, b, lb, ub, sense='min',
-                 binaryVariables=None, variableNames=None,
-                 modelName=None):
-        self.c = c
-        self.A = A
-        self.b = b
-        self.ub = ub
-        self.lb = lb
-        self.sense = sense
-        self.binaryVariables = binaryVariables
-        self.modelName = modelName
-
-    def construct(self):
-        m = Model(self.modelName)
-        return m
-
-    def updateObjective(self, c):
-        pass
-
-    def updateRHS(self, b):
-        pass
+__author__ = "Semidan Robaina Estevez"
 
 
-def updateObjective(model, cvec, sense='min', vars=None):
+def updateObjective(model, cvec, sense='min'):
 
     if sense.lower() in 'min':
         obj_sense = GRB.MINIMIZE
     else:
         obj_sense = GRB.MAXIMIZE
 
-    if vars is None:
-        x = model.getVars()
-    else:
-        x = vars
+    x = model.getVars()
     o = ''
     for i, coeff in enumerate(cvec):
         if coeff != 0:
@@ -144,6 +102,7 @@ def constructGurobiModel(c, G, h, A, b, lb=None, ub=None, sense='min',
         m.addConstr(eval(s))
 
     # Set objective
-    m = updateObjective(m, c, sense='min', vars=x)
+    m.update()
+    m = updateObjective(m, c, sense='min')
 
     return m

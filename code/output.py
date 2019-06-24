@@ -3,16 +3,6 @@ import pandas as pd
 import json
 import time
 import os
-# from six import iteritems
-# import re
-#
-# import cobra
-# from cobra.core.reaction import Reaction as cobraReaction
-# from cobra.flux_analysis.variability import flux_variability_analysis
-# from cobra.util.solver import set_objective
-# from equilibrator_api import ComponentContribution, Reaction
-# import cvxopt
-# from cvxopt import glpk
 import networkx as nx
 
 from parameters import *
@@ -54,7 +44,7 @@ def onlyProtonMetaboliteEdge(met_i, met_j):
 reduced_met_orders = []
 for i in range(N_nodes):
     for j in range(N_nodes):
-        #if not onlyProtonMetaboliteEdge(i, j):
+        if not onlyProtonMetaboliteEdge(i, j):
         min_ratio = A_plus[i, j]
         if min_ratio > 1:
             #max_ratio = B[i, j]

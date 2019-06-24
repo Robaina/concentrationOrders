@@ -60,7 +60,7 @@ for pair in candidate_pairs:
 
     z = x[p] - x[q]
 
-    if z > 0 and status == 2:  # in 'optimal':
+    if z > 0 and status == GRB.Status.OPTIMAL:  # in 'optimal':
         met_i, met_j = GEM_mets[[p, q]]
         min_ratio = np.e**z
 

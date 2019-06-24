@@ -1,4 +1,4 @@
-let nodeSize = 200;
+let nodeSize = 400;
 let nodeFontSize = 200;
 let edgeFontSize = 150;
 let edgeWidth = 10;

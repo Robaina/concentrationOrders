@@ -3,7 +3,7 @@ R = 8.3144598 * 1e-6 # kJ. K^-1. mmol^-1
 T = 310.15 # 298.15 # K
 
 # Parameters
-number_preprocessing_samples = 500
+number_preprocessing_samples = 10
 loopless_fva = False
 numerator_metabolites = p_mets = None
 denominator_metabolites = q_mets = None
