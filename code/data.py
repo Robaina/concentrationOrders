@@ -1,22 +1,14 @@
 import numpy as np
 import pandas as pd
-import json
-import time
-import os
 from six import iteritems
 import re
-
 import cobra
 from cobra.core.reaction import Reaction as cobraReaction
 from cobra.flux_analysis.variability import flux_variability_analysis
 from cobra.util.solver import set_objective
-from equilibrator_api import ComponentContribution, Reaction
-import cvxopt
-from cvxopt import glpk
-import networkx as nx
+from equilibrator_api import ComponentContribution, Q_, parse_reaction_formula
 
 
-# from parameters import * #that would solve the problem
 def updateExchangeReactionBounds(GEM,
                                  uptakeRxn='EX_glc__D_e',
                                  carbonUptakeRate=10):
@@ -39,9 +31,8 @@ def updateExchangeReactionBounds(GEM,
         except Exception:
             pass
     GEM.reactions.get_by_id(uptakeRxn).lower_bound = -carbonUptakeRate
-    # Temporarily remove constraint on ATPM
-    GEM.reactions.get_by_id('ATPM').lower_bound = 0
     return GEM
+
 
 def convert_to_irreversible_SRE(GEM):
     """Split reversible reactions into two irreversible reactions: one going in
@@ -55,6 +46,7 @@ def convert_to_irreversible_SRE(GEM):
     """
     reactions_to_add = []
     coefficients = {}
+
     def onlyBackward(reaction):
         return reaction.lower_bound < 0 and reaction.upper_bound <= 0
 
@@ -68,7 +60,7 @@ def convert_to_irreversible_SRE(GEM):
         ub = swapSign(reaction.lower_bound)
         reaction.lower_bound = lb
         reaction.upper_bound = ub
-        reaction.objective_coefficient * -1
+        reaction.objective_coefficient *= -1
         reaction.notes["reflection"] = 'reversed, only backward'
         for met in reaction._metabolites.keys():
             reaction._metabolites[met] *= -1
@@ -96,49 +88,140 @@ def convert_to_irreversible_SRE(GEM):
         elif backwardAndForward(reaction):
             backward_reaction = createBackwardReaction(reaction)
             reactions_to_add.append(backward_reaction)
+            reaction.lower_bound = 0
             reaction.id += '_forward'
             reaction.name += '_forward'
-            reaction.lower_bound = 0
 
     GEM.add_reactions(reactions_to_add)
     set_objective(GEM, coefficients, additive=True)
 
-    return GEM
 
-
-def prepareGEM(work_directory='', carbon_source=None,
-                uptake_rate=None, biomass_threshold=None,
-                loopless_fva=None,
-                biomass_reaction_id=None):
-
-    # Load model (Update exchange reaction bounds)
-    GEM = cobra.io.load_json_model(work_directory + 'iJO1366.json')
-    updateExchangeReactionBounds(GEM, uptakeRxn=carbon_source, carbonUptakeRate=uptake_rate)
-
-    # Find non-default irreversible reactions
-    print('Running flux variability analysis...')
+def removeBlockedReactions(GEM, v_eps=None):        
+    blockedRxns = cobra.flux_analysis.find_blocked_reactions(
+        GEM, zero_cutoff=v_eps, open_exchanges=False)
+    for rxn in blockedRxns:
+        GEM.reactions.get_by_id(rxn).remove_from_model(remove_orphans=True)
+        
+        
+def removeBlockedReactionsLoopless(GEM):
     fva = flux_variability_analysis(GEM, reaction_list=None,
-                                    fraction_of_optimum=biomass_threshold,
-                                    processes=2,
-                                    loopless=loopless_fva).round(decimals=8)
-    # fva.to_csv('iJO1366fva.csv')
-    GEM.optimize()
-    biomass_reaction = GEM.reactions.get_by_id(biomass_reaction_id)
-    biomass_reaction.lower_bound = biomass_threshold * GEM.objective.value
-
-    # Update lower bound of fixed reactions and eliminate blocked ones
+                                    fraction_of_optimum=0, processes=2,
+                                    loopless=True).round(decimals=8)
     for rxn_id in fva.index:
         v_min, v_max = fva.loc[rxn_id].minimum, fva.loc[rxn_id].maximum
-        if v_min > 0 or v_max < 0:
-            GEM.reactions.get_by_id(rxn_id).lower_bound = v_min
-            GEM.reactions.get_by_id(rxn_id).upper_bound = v_max
         if v_min == 0 and v_max == 0:
             GEM.reactions.get_by_id(rxn_id).remove_from_model(remove_orphans=True)
+            
+            
+def findReactionsWithPositiveFluxAtOptimum(GEM, fraction_of_optimum=1):
+    """from cobra.flux_analysis.variability import flux_variability_analysis
+    GEM must be irreversible, i.e., split reversible reactions
+    """
+    positive_rxns = []
+    fva = flux_variability_analysis(GEM, reaction_list=None,
+                                    fraction_of_optimum=fraction_of_optimum, 
+                                    processes=2, loopless=False).round(decimals=8)
+    for rxn_id in fva.index:
+        v_min, v_max = fva.loc[rxn_id].minimum, fva.loc[rxn_id].maximum
+        if v_min > 0:
+            positive_rxns.append(rxn_id)
+    return positive_rxns
 
-    # Convert model to irreversible
+
+def findMetaboliteByCommonName(GEM, met_name):
+    candidates = []
+    met_ids = [met.id for met in GEM.metabolites]
+    met_names = [met.name for met in GEM.metabolites]
+    for i, met_id in enumerate(met_ids):
+        if (met_name.lower() in met_id.lower() or
+            met_name.lower() in met_names[i].lower()):
+            candidates.append([met_id, met_names[i]])
+    return candidates
+
+
+def findMetaboliteByCommonName(GEM, met_name):
+    candidates = []
+    met_ids = [met.id for met in GEM.metabolites]
+    met_names = [met.name for met in GEM.metabolites]
+    for i, met_id in enumerate(met_ids):
+        if (met_name.lower() in met_id.lower() or
+            met_name.lower() in met_names[i].lower()):
+            candidates.append([met_id, met_names[i]])
+    return candidates
+
+
+def findMetabolitesInCentralMetabolism(GEM, systems_df):
+    """
+    Find metabolites participating in reactions of central carbon metabolism
+    """
+    central_metabolism = ['Carbohydrate metabolism']
+#     central_metabolism = ['Carbohydrate metabolism', 'Amino acid metabolism',
+#                      'Nucleotide metabolism', 'Lipid metabolism']
+    systems = systems_df['Subsystems'].loc[
+        systems_df['Systems'].isin(central_metabolism)].values
+    
+    def isCentralMetabolite(met):
+        met_subsystems = [rxn.subsystem for rxn in met.reactions]
+        return len(np.intersect1d(systems, met_subsystems)) > 0
+        
+    central_metabolites = []
+    for met in GEM.metabolites:
+        if isCentralMetabolite(met):
+            central_metabolites.append(met.id)
+    return central_metabolites
+
+
+def findThermodynamicallyInfeasibleReactions(GEM, dG0data, x_min, x_max, 
+                                             fraction_of_optimum=1):
+    """
+    Find reactions that are needed to carry flux to produce biomass but that
+    are thermodynamically infeasible due to concentration and dG0 constraints
+    """
+    infeasible_rxns = {}
+    positive_rxns = findReactionsWithPositiveFluxAtOptimum(GEM, 
+                                                           fraction_of_optimum=fraction_of_optimum)
+    
+    dG0_lb = {}
+    for rxn_id in dG0data.keys():
+        dG0_lb[rxn_id] = dG0data[rxn_id]['dG0'] - dG0data[rxn_id]['error']
+        
+        
+    for rxn_id in dG0data.keys():
+        dG0_lb = dG0data[rxn_id]['dG0'] - dG0data[rxn_id]['error']
+        rxn = GEM.reactions.get_by_id(rxn_id)
+        
+        logx_sum = 0
+        for met in rxn.metabolites.keys():
+            coeff = rxn.metabolites[met]
+            extreme_x = 0
+            if coeff < 0:
+                extreme_x = x_max[met.id]
+            else:
+                extreme_x = x_min[met.id]
+            logx_sum += coeff * np.log(extreme_x)
+        
+        dG0_r = dG0_lb + par.R * par.T * logx_sum
+        if dG0_r > 0:
+            infeasible_rxns[rxn_id] = {'dG0_r':dG0_r,'dG0_lb': dG0_lb,
+                                       'sum_logx':par.R * par.T * logx_sum}
+            
+    return infeasible_rxns
+        
+
+def prepareGEM(path_to_GEM, carbon_source=None,
+               uptake_rate=None, loopless=False,
+               biomass_reaction_id=None):
+
+    GEM = cobra.io.load_json_model(path_to_GEM)
+    updateExchangeReactionBounds(GEM, uptakeRxn=carbon_source,
+                                 carbonUptakeRate=uptake_rate)
+    
+    if loopless:
+        removeBlockedReactionsLoopless(GEM)
+    else:
+        removeBlockedReactions(GEM, v_eps=None)
+    
     convert_to_irreversible_SRE(GEM)
-
-    # Remove unused metabolites
     _ = cobra.manipulation.delete.prune_unused_metabolites(GEM)
 
     return GEM
@@ -149,12 +232,10 @@ def getFreeEnergyData(GEM, work_directory='', pH_i=None,
                       dG0_uncertainty_threshold=None):
 
     # Load equilibrator data
-    eq_api = ComponentContribution(pH=pH_i, ionic_strength=Ionic_strength)
+    eq_api = ComponentContribution(p_h=Q_(str(pH_i)), ionic_strength=Q_(Ionic_strength))
 
-    # Get iJO1366 reactions as KEGG reaction strings
-    GEM2KEGG = pd.read_csv(work_directory
-         + 'equilibrator-api/src/equilibrator_api/data/iJO1366_reactions.csv',
-            index_col=0)
+    # Get iJO1366/iML1515 reactions as KEGG reaction strings
+    GEM2KEGG = pd.read_csv(work_directory + '/iJO1366_reactions.csv', index_col=0)
 
     # Prepare dictionary with dG0
     def originallyIrreversible(reaction_id):
@@ -162,7 +243,6 @@ def getFreeEnergyData(GEM, work_directory='', pH_i=None,
 
     dG0_data = {}
     GEM_rxns = np.array([rxn.id for rxn in GEM.reactions])
-    GEM_mets = np.array([met.id for met in GEM.metabolites])
 
     for rxn_id in GEM_rxns:
         try:
@@ -171,14 +251,18 @@ def getFreeEnergyData(GEM, work_directory='', pH_i=None,
             else:
                 id, direction = re.split('_(forward|backward)', rxn_id)[:2]
 
-            rxn = Reaction.parse_formula(GEM2KEGG.loc[id.lower()].item())
-            dG0_prime, dG0_uncertainty = np.array(eq_api.dG0_prime(rxn)) * 1e-3 # convert to kJ/mmol
+            rxn = parse_reaction_formula(GEM2KEGG.loc[id.lower()]['formula'])
+
+            dG0_prime = eq_api.standard_dg_prime(rxn).value.magnitude  # kJ/mmol
+            dG0_uncertainty = eq_api.standard_dg_prime(rxn).error.magnitude  # kJ/mol
             if dG0_uncertainty < abs(dG0_uncertainty_threshold * dG0_prime):
                 # remove uncertain dG0 data
                 if 'backward' in direction:
-                    dG0_data[rxn_id] = [-dG0_prime, dG0_uncertainty]
+                    dG0_data[rxn_id] = {'dG0': -dG0_prime,
+                                        'error': dG0_uncertainty}
                 else:
-                    dG0_data[rxn_id] = [dG0_prime, dG0_uncertainty]
+                    dG0_data[rxn_id] = {'dG0': dG0_prime,
+                                        'error': dG0_uncertainty}
         except Exception:
             pass
 
