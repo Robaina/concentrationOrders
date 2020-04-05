@@ -19,7 +19,7 @@ def buildDAGadjacencyMatrix(GEM, met_orders):
     for met_pair in met_orders:
         i, j = total_mets.index(
             met_pair[0]), total_mets.index(met_pair[1])
-        A[i, j] = 1
+        A[i, j] = met_pair[2]
 
     # Get transitive reduction of the graph
     G = nx.from_numpy_matrix(A, create_using=nx.DiGraph())
@@ -53,17 +53,22 @@ def removeEdgesToProton(A_plus, total_mets):
             if total_mets[i] != 'h_c' and total_mets[j] != 'h_c':
                min_ratio = A_plus[i, j]
 #             if min_ratio > 1:
-               if A_plus[i, j] == 1:
+               if A_plus[i, j] != 0:
                    reduced_met_orders.append(
                                 [total_mets[i], total_mets[j], min_ratio])
     return reduced_met_orders
 
 
-def buildGraphJSONData(GEM, total_mets, ordered_met_pairs):
+def buildGraphJSONData(GEM, ordered_met_pairs):
     # Build data dictionary (using reduced_met_orders)
     data = {}
     data['nodes'] = []
     data['edges'] = []
+    
+    total_mets = np.unique(
+        np.array(
+            [[met_pairs[0], met_pairs[1]]
+             for met_pairs in ordered_met_pairs]).flatten()).tolist()
 
     for met in total_mets:
         data['nodes'].append(
@@ -82,21 +87,15 @@ def buildGraphJSONData(GEM, total_mets, ordered_met_pairs):
                 'id': met_pairs[0] + '_' + met_pairs[1],
                 'source': met_pairs[0],
                 'target': met_pairs[1],
-                'label': str(np.round(met_pairs[2], 2))
+                'label': str(np.round(met_pairs[2], 3))
             }
         })
     return data
 
 
-def writeOutputFiles(data):
-    print(' ')
-    print('Writing files...')
-    if not os.path.exists(par.work_directory + par.directory):
-        os.makedirs(par.work_directory + par.directory)
-
-
-    with open(f'{par.work_directory}/{par.directory}/Parameters.txt', 'w') as readme:
-        readme.write(time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime()) + '\n'
+def writeParametersLog(data):
+     with open(f'{par.work_directory}/{par.directory}/Parameters.txt', 'w') as file:
+        file.write(time.strftime("%a, %d %b %Y %H:%M:%S +0000", time.gmtime()) + '\n'
                      + 'Condition name: ' + par.dirName + '\n'
                      + 'Number of ordered pairs: {}'.format(len(data['edges'])) + '\n'
                      + ' ' + '\n'
@@ -106,7 +105,6 @@ def writeOutputFiles(data):
                      + 'Intracellular pH: ' + str(par.pH_i) + ' ± ' + str(par.pH_deviation) + '\n'
                      + 'Maximum internal O_2: ' + str(par.maxo2) + ' mM \n'
                      + 'dG0 uncertainty threshold: ' + str(par.alpha) + '\n'
-                     + 'dG0 allowed error fraction: ' + str(par.gamma) + '\n'
                      + 'Carbon uptake reaction: ' + par.carbon_source + '\n'
                      + 'Uptake rate: ' + str(par.uptake_rate) + ' mmol.min^-1.gDW^-1' + '\n'
                      + 'Biomass threshold: ' + str(par.beta) + '\n'
@@ -117,6 +115,15 @@ def writeOutputFiles(data):
                      + 'Notes: ' + '\n'
                      + '------' + '\n'
                      + par.notes)
+
+
+def writeOutputFiles(data):
+    print(' ')
+    print('Writing files...')
+    if not os.path.exists(par.work_directory + '/' + par.directory):
+        os.makedirs(par.work_directory + '/' + par.directory)
+
+    writeParametersLog(data)
 
     with open((par.work_directory + '/data/conditions/' 
                + par.dirName + '/' + par.fileName), 'w') as outfile:

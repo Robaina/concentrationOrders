@@ -42,4 +42,4 @@ I've seen that the number of ordered pairs is extremely sensitivy to:
 1. The global concentration lower bound (almost no pairs when x_min < 1e-4)
 2. The minimum pH value (many pairs when pH_min > 7.1)
 
-Why is that? What can we conclude from this? What other experiments, observations are relevant?
+Why is that? What can we conclude from this? What other experiments, observations are relevant? Well, with respect to the minimum pH, this is due to effectively impossing a "higher" lower bound on the concentration of h_c (rembember lower pH implies higher h_c concentration), so many metabolites then become ordered with h_c.

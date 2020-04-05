@@ -14,7 +14,7 @@ def updateExchangeReactionBounds(GEM,
                                  carbonUptakeRate=10):
     """
     Update exchange reaction bounds to simulate appropriate growth medium
-    conditions.
+    conditions. Default max glucose uptake rate in iML1515 is 10 mmol/(min.gDW)
     """
     def isOrganicExchange(ID):
         compoundAtoms = list(GEM.reactions.get_by_id(ID).reactants[0].formula)
@@ -139,36 +139,22 @@ def findMetaboliteByCommonName(GEM, met_name):
     return candidates
 
 
-def findMetaboliteByCommonName(GEM, met_name):
-    candidates = []
-    met_ids = [met.id for met in GEM.metabolites]
-    met_names = [met.name for met in GEM.metabolites]
-    for i, met_id in enumerate(met_ids):
-        if (met_name.lower() in met_id.lower() or
-            met_name.lower() in met_names[i].lower()):
-            candidates.append([met_id, met_names[i]])
-    return candidates
-
-
-def findMetabolitesInCentralMetabolism(GEM, systems_df):
+def findMetabolitesInPathways(GEM, systems_df, pathways=['Carbohydrate metabolism']):
     """
     Find metabolites participating in reactions of central carbon metabolism
     """
-    central_metabolism = ['Carbohydrate metabolism']
-#     central_metabolism = ['Carbohydrate metabolism', 'Amino acid metabolism',
-#                      'Nucleotide metabolism', 'Lipid metabolism']
     systems = systems_df['Subsystems'].loc[
-        systems_df['Systems'].isin(central_metabolism)].values
+        systems_df['Systems'].isin(pathways)].values
     
-    def isCentralMetabolite(met):
+    def isPathwayMetabolite(met):
         met_subsystems = [rxn.subsystem for rxn in met.reactions]
         return len(np.intersect1d(systems, met_subsystems)) > 0
         
-    central_metabolites = []
+    pathway_metabolites = []
     for met in GEM.metabolites:
-        if isCentralMetabolite(met):
-            central_metabolites.append(met.id)
-    return central_metabolites
+        if isPathwayMetabolite(met):
+            pathway_metabolites.append(met.id)
+    return pathway_metabolites
 
 
 def findThermodynamicallyInfeasibleReactions(GEM, dG0data, x_min, x_max, 

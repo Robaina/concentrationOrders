@@ -1,9 +1,0 @@
-Diectory: Cond5
-T: 310.15 K
-dG0 uncertainty threshold: 2
-dG0 allowed error fraction: 1
-Biomass threshold: 1
-Gibbs_eps: 1e-06 kJ/mol
-X_min: 1e-07 M
-X_max: 0.015 M
-Notes: Original iJO1366 flux bounds, added maximum ratio, new formulation

@@ -124,13 +124,17 @@ select option {
   display: none;
 }
 
+#graph-container {
+  /* height: 50vh; */
+}
+
 .graph {
-  width: 80vw;
+  width: 95vw;
   height: 100vh;
   /* position: absolute; */
-  margin-left: calc( (100vw - 80vw) / 2 );
+  margin-left: calc( (100vw - 95vw) / 2 );
   padding: 0%;
-  margin-top: 5vh;
+  margin-top: 0vh;
   /* top: 25vmin; */
   z-index: 0;
 }

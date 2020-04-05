@@ -1,15 +1,20 @@
-Directory: Cond2
-Sun, 23 Jun 2019 13:06:41 +0000
+Sat, 04 Apr 2020 20:09:16 +0000
+Condition name: cond2
+Number of ordered pairs: 8
+ 
+Parameter values:
+-----------------
 T: 310.15 K
-Intracellular pH: 7.3 ± 0.3
-Maximum internal O_2: 200.0 mM 
-dG0 uncertainty threshold: 10
-dG0 allowed error fraction: 1
+Intracellular pH: 7.4 ± 0.4
+Maximum internal O_2: 0.5 mM 
+dG0 uncertainty threshold: 1
 Carbon uptake reaction: EX_glc__D_e
 Uptake rate: 10 mmol.min^-1.gDW^-1
-Biomass threshold: 0.95
-Gibbs_eps: 1e-08 kJ/mmol
-X_min: 0.0001 mM
-X_max: 200.0 mM
-Loopless FVA: False
-Notes: Growth on Glucose, MILP formulation, partitioned code, pre-processing
+Biomass threshold: 1
+dG0_eps: -0.001 kJ/mmol
+X_min: 1e-05 mM
+X_max: 100.0 mM
+ 
+Notes: 
+------
+Growth on Glucose, central candidate pairs, new x bounds

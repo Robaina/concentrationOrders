@@ -63,11 +63,11 @@ def buildMILPModel(GEM, dG0data):
     # Add variables
     variables = {'x': {}, 'logx': {}, 'v': {}, 'dG0': {}, 'y': {}}
     
-    for met in GEM.metabolites:
-        var_id = f'x_{met.id}'
-        x = model.addVar(lb=0, ub=2 * par.x_max,
-                         obj=0.0, vtype=GRB.CONTINUOUS, name=var_id)
-        variables['x'][var_id] = x
+#     for met in GEM.metabolites:
+#         var_id = f'x_{met.id}'
+#         x = model.addVar(lb=0, ub=2 * par.x_max,
+#                          obj=0.0, vtype=GRB.CONTINUOUS, name=var_id)
+#         variables['x'][var_id] = x
         
     for met in GEM.metabolites:
         var_id = f'logx_{met.id}'
@@ -83,8 +83,8 @@ def buildMILPModel(GEM, dG0data):
 
     for rxn_id in dG0data.keys():
         var_id = f'dG0_{rxn_id}'
-        lb = dG0data[rxn_id]['dG0'] - par.gamma * dG0data[rxn_id]['error']
-        ub = dG0data[rxn_id]['dG0'] + par.gamma * dG0data[rxn_id]['error']
+        lb = dG0data[rxn_id]['dG0'] - dG0data[rxn_id]['error']
+        ub = dG0data[rxn_id]['dG0'] + dG0data[rxn_id]['error']
         x = model.addVar(lb=lb, ub=ub,
                          obj=0.0, vtype=GRB.CONTINUOUS, name=var_id)
         variables['dG0'][var_id] = x
@@ -130,20 +130,20 @@ def buildMILPModel(GEM, dG0data):
             
 
     # Adding log constraint logx = log(x), only available in Gurobi 9
-    for met in GEM.metabolites:
-        logx = variables['logx'][f'logx_{met.id}']
-        x = variables['x'][f'x_{met.id}']
-        model.addGenConstrLog(x, logx, name=f'logx_{met.id} = log(x_{met.id})') 
+#     for met in GEM.metabolites:
+#         logx = variables['logx'][f'logx_{met.id}']
+#         x = variables['x'][f'x_{met.id}']
+#         model.addGenConstrLog(x, logx, name=f'logx_{met.id} = log(x_{met.id})') 
     
-    # Adding total concentration sum constraint
-    sum_str = ''
-    for met in GEM.metabolites:
-        sum_str += f'variables["x"]["x_{met.id}"] +'
-    sum_str = sum_str[:-1]
-    c_min = f'{sum_str} >= {par.min_sum_x}'
-    c_max = f'{sum_str} <= {par.max_sum_x}'
-    model.addConstr(eval(c_min), 'min concentration sum')
-    model.addConstr(eval(c_max), 'max concentration sum')
+#     # Adding total concentration sum constraint
+#     sum_str = ''
+#     for met in GEM.metabolites:
+#         sum_str += f'variables["x"]["x_{met.id}"] +'
+#     sum_str = sum_str[:-1]
+#     c_min = f'{sum_str} >= {par.min_sum_x}'
+#     c_max = f'{sum_str} <= {par.max_sum_x}'
+#     model.addConstr(eval(c_min), 'min concentration sum')
+#     model.addConstr(eval(c_max), 'max concentration sum')
     
     
     model.setParam('OutputFlag', False)
@@ -187,20 +187,20 @@ def findCandidatePairs(model, n_samples=100):
             logx_vars[x.VarName] = x
             met_names.append(x.VarName.replace('logx_', ''))
 
-    for id in logx_vars.keys():
+    for logx_id in logx_vars.keys():
 
         # Add e_plus, e_minus variables
-        var_id = f'e_plus_{id.replace("logx_", "")}'
+        var_id = f'e_plus_{logx_id.replace("logx_", "")}'
         e_plus = sampling_model.addVar(lb=0, ub=1e6,
                                        obj=1.0, vtype=GRB.CONTINUOUS,
                                        name=var_id)
 
-        var_id = f'e_minus_{id.replace("logx_", "")}'
+        var_id = f'e_minus_{logx_id.replace("logx_", "")}'
         e_minus = sampling_model.addVar(lb=0, ub=1e6,
                                         obj=1.0, vtype=GRB.CONTINUOUS,
                                         name=var_id)
-        e_vars['e_plus'][id] = e_plus
-        e_vars['e_minus'][id] = e_minus
+        e_vars['e_plus'][logx_id] = e_plus
+        e_vars['e_minus'][logx_id] = e_minus
 
     sampling_model.update()
 
@@ -214,19 +214,23 @@ def findCandidatePairs(model, n_samples=100):
     sampling_model.update()
     n_mets = len(logx_vars)
     lb, ub = np.log(par.x_min), np.log(par.x_max)
-    X_sample = np.zeros((n_mets, n_samples))
+    X_sample = []
     for n in range(n_samples):
-
-        # print(f'sample number {n}')
+         
         logx_rand_values = (ub - lb) * np.random.rand(n_mets) + lb
-
         for logx_rand, e_constr in zip(logx_rand_values, e_constraints.values()):
             e_constr.RHS = logx_rand
 
         sampling_model.update()
-        sampling_model.optimize()
-        X_sample[:, n] = retrieveSolutionByIDs(sampling_model, logx_vars.keys())
-
+        
+        try:
+            sampling_model.optimize()
+            X_sample.append(retrieveSolutionByIDs(sampling_model, logx_vars.keys()))
+            
+        except Exception:
+            pass
+        
+    X_sample = np.array(X_sample).transpose()
     candidatePairs = []
     for p in range(n_mets):
         for q in range(n_mets):
@@ -234,3 +238,35 @@ def findCandidatePairs(model, n_samples=100):
                 candidatePairs.append((met_names[p], met_names[q]))
 
     return (X_sample, candidatePairs, sampling_model)
+
+
+def findConcentrationOrderedPairs(model, candidatePairs):
+    """
+    Evaluate whether candidate pairs are really ordered or not
+    """
+    print('Evaluating concentration-ordered pairs...')
+    model.setParam('OutputFlag', False)
+    ordered_pairs = []
+#     n = 0
+    for pair in candidatePairs:
+        
+#         if n % 100 == 0:
+#             print(f'Computing pair: {n}')
+#         n += 1
+        
+        met_p, met_q = pair
+        logx_p = model.getVarByName(f'logx_{met_p}')
+        logx_q = model.getVarByName(f'logx_{met_q}')
+        
+        model.setObjective(logx_p - logx_q, GRB.MINIMIZE)
+        model.update()
+        
+        try:
+            model.optimize()
+            z = np.e**model.objval
+        except Exception:
+            z = 0
+        
+        if z > 1:
+            ordered_pairs.append(list(pair) + [z])
+    return ordered_pairs

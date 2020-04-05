@@ -1,9 +1,20 @@
-Diectory: Cond4
+Sun, 05 Apr 2020 10:48:43 +0000
+Condition name: cond4
+Number of ordered pairs: 18
+ 
+Parameter values:
+-----------------
 T: 310.15 K
-dG0 uncertainty threshold: 0.5
-dG0 allowed error fraction: 1
+Intracellular pH: 7.4 ± 0.4
+Maximum internal O_2: 0.5 mM 
+dG0 uncertainty threshold: 1
+Carbon uptake reaction: EX_glc__D_e
+Uptake rate: 10 mmol.min^-1.gDW^-1
 Biomass threshold: 1
-Gibbs_eps: 1e-06 kJ/mol
-X_min: 1e-07 M
-X_max: 0.1 M
-Notes: Original iJO1366 flux bounds, added maximum ratio, new formulation
+dG0_eps: -0.001 kJ/mmol
+X_min: 0.001 mM
+X_max: 100.0 mM
+ 
+Notes: 
+------
+Growth on Glucose, no maximum metabolite sum constraint, including all pathways
