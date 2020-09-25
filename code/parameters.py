@@ -11,8 +11,9 @@ carbon_source = 'EX_glc__D_e'
 uptake_rate = 10  # mmol.min^-1.gDW^-1
 biomass_threshold = beta = 1
 dG0_eps = 1e-3  # kJ/mmol
+dG0_error_fraction = 0 # dG0 error fractio to be included in dG0 bounds
 M = 1e8  # big number to unconstrain reactions with no dG0 data
-x_min, x_max = 1e-3, 1e2  # mM
+x_min, x_max = 1e-4, 1e2  # mM
 max_sum_x = 350 # mM
 min_sum_x = 300 # mM
 Intracellular_pH = pH_i = 7.4
@@ -27,7 +28,7 @@ maximum_internal_O2 = maxo2 = 0.5  # mM  {uM = 250 (Potzkei et al, 2012)}
 
 # Output parameters
 fileName = 'graphData.json'
-dirName = 'cond5'
+dirName = 'cond6'
 directory = 'data/conditions/' + dirName
-notes = 'Growth on Glucose, no maximum metabolite sum constraint, including all pathways'
+notes = 'Growth on Glucose, no maximum metabolite sum constraint, including all pathways, reduced uncertainty in dG0 values, 0% of original'
 work_directory = 'C:/Users/tinta/OneDrive/Documents/Projects/Ordering_of_Concentrations'

@@ -83,8 +83,8 @@ def buildMILPModel(GEM, dG0data):
 
     for rxn_id in dG0data.keys():
         var_id = f'dG0_{rxn_id}'
-        lb = dG0data[rxn_id]['dG0'] - dG0data[rxn_id]['error']
-        ub = dG0data[rxn_id]['dG0'] + dG0data[rxn_id]['error']
+        lb = dG0data[rxn_id]['dG0'] - par.dG0_error_fraction * dG0data[rxn_id]['error']
+        ub = dG0data[rxn_id]['dG0'] + par.dG0_error_fraction * dG0data[rxn_id]['error']
         x = model.addVar(lb=lb, ub=ub,
                          obj=0.0, vtype=GRB.CONTINUOUS, name=var_id)
         variables['dG0'][var_id] = x
