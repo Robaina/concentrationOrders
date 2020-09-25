@@ -5,9 +5,7 @@ in any steady state of the system, where $x_i$ is the concentration of metabolit
 
 I'm using data on $\Delta G$ from the equilibrator api.
 
-
-# Metabolite concentrations follow an order relation in _Escherichia coli_
-
+---
 
   Several studies have shown that certain metabolites maintain an order relation in their concentrations under different steady states of \emph{Escherichia coli} \cite{Bennett2008,Bennett2009a}. This order relation may be the result of diverse constraints operating at steady state, such as stoichiometric, thermodynamic and growth constraints. In the following, we will derive a theoretical explanation for this ordering of concentrations.
 
